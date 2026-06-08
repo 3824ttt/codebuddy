@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.db
+_err.log
+_server.log
+.codebuddy/
+.vscode/
+*.pyo

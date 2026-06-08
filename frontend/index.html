@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>读者荐读系统 - 为好书发声</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-light: #e0e7ff;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: #fff;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo svg { width: 32px; height: 32px; }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+  .header-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .header-stats strong { font-size: 18px; }
+
+  /* Main */
+  .main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  /* Search & Filter */
+  .search-bar {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .search-input-wrap {
+    flex: 1;
+    min-width: 250px;
+    position: relative;
+  }
+  .search-input-wrap svg {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+  }
+  .search-input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .filter-select {
+    padding: 10px 16px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    cursor: pointer;
+    background: #fff;
+  }
+  .filter-select:focus { border-color: var(--primary); }
+  .sort-btn {
+    padding: 10px 20px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    background: #fff;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sort-btn:hover, .sort-btn.active {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  /* Info Banner */
+  .info-banner {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #92400e;
+  }
+  .info-banner strong { font-size: 20px; color: #d97706; }
+
+  /* Book Grid */
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .book-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    cursor: default;
+  }
+  .book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+  .book-cover {
+    height: 180px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .book-cover .cover-text {
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    padding: 20px;
+    line-height: 1.4;
+  }
+  .book-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .book-badge.recommended {
+    background: var(--success);
+  }
+  .book-info {
+    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .book-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .book-subtitle { font-size: 13px; font-weight: 400; color: var(--text-secondary); display: block; }
+  .book-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .book-meta span {
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .book-keywords { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .kw-tag { background: #e0e7ff; color: #4f46e5; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+  .book-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex: 1;
+  }
+
+  /* Progress Bar */
+  .progress-wrap {
+    margin-top: auto;
+  }
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+  .progress-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .progress-fill.low { background: #94a3b8; }
+  .progress-fill.mid { background: #f59e0b; }
+  .progress-fill.high { background: #10b981; }
+
+  .btn-recommend {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--primary);
+    color: #fff;
+  }
+  .btn-recommend:hover { background: #4338ca; }
+  .btn-recommend:disabled {
+    background: #cbd5e1;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+  .btn-recommend.voted {
+    background: var(--success);
+    cursor: default;
+  }
+  .btn-recommend.reached {
+    background: #059669;
+  }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 32px;
+    padding: 16px;
+  }
+  .pagination button {
+    padding: 8px 16px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .pagination button:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pagination .current {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 8px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    animation: slideDown 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.info { background: var(--primary); }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+  }
+  .empty-state svg { width: 80px; height: 80px; margin-bottom: 16px; opacity: 0.3; }
+  .empty-state h3 { font-size: 18px; margin-bottom: 8px; }
+
+  /* Loading */
+  .loading-spinner {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+  }
+  .loading-spinner::after {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 3px solid #e2e8f0;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      读者荐读系统
+    </div>
+    <div class="header-stats" id="headerStats">
+      <span>📚 图书 <strong id="statBooks">-</strong></span>
+      <span>👍 总推荐 <strong id="statClicks">-</strong></span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Search & Filter -->
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="search-input" id="searchInput" placeholder="搜索书名、作者、ISBN...">
+    </div>
+    <select class="filter-select" id="publisherFilter">
+      <option value="">全部出版社</option>
+    </select>
+    <select class="filter-select" id="subjectFilter">
+      <option value="">全部学科门类</option>
+    </select>
+    <select class="filter-select" id="majorFilter">
+      <option value="">全部专业</option>
+    </select>
+    <button class="sort-btn active" data-sort="click_count">🔥 热门排序</button>
+    <button class="sort-btn" data-sort="newest">🕐 最新上架</button>
+    <button class="sort-btn" data-sort="title">📖 书名排序</button>
+  </div>
+
+  <!-- Info Banner -->
+  <div class="info-banner" id="infoBanner">
+    <span>📢 每本书需要 <strong id="thresholdValue">-</strong> 次推荐即可进入采购书单，快来为你心仪的好书投票吧！</span>
+    <span>⏱ 同一读者对同一本书 24 小时内只能推荐一次</span>
+  </div>
+
+  <!-- Book Grid -->
+  <div class="book-grid" id="bookGrid">
+    <div class="loading-spinner">加载中</div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<footer>© 2026 读者荐读系统 · 让每一本好书都被看见</footer>
+
+<script>
+// ==================== 工具函数 ====================
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&#34;');
+}
+
+// ==================== 状态管理 ====================
+const state = {
+  books: [],
+  categories: [],
+  publishers: [],
+  subjects: [],
+  majors: [],
+  total: 0,
+  page: 1,
+  perPage: 20,
+  search: '',
+  category: '',
+  publisher: '',
+  subject: '',
+  major: '',
+  sort: 'click_count',
+  threshold: 10,
+  votedBooks: JSON.parse(localStorage.getItem('voted_books') || '{}'),
+};
+
+// ==================== API 工具 ====================
+async function api(path, options = {}) {
+  try {
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    });
+    const data = await res.json();
+    if (!res.ok && data.error) {
+      throw new Error(data.error);
+    }
+    return data;
+  } catch (e) {
+    console.error('API Error:', e);
+    throw e;
+  }
+}
+
+// ==================== 加载数据 ====================
+async function loadBooks() {
+  const grid = document.getElementById('bookGrid');
+  grid.innerHTML = '<div class="loading-spinner">加载中</div>';
+
+  const params = new URLSearchParams({
+    search: state.search,
+    category: state.category,
+    publisher: state.publisher,
+    subject: state.subject,
+    major: state.major,
+    sort: state.sort,
+    page: state.page,
+    per_page: state.perPage,
+  });
+
+  const data = await api('/api/books?' + params);
+  state.books = data.books;
+  state.total = data.total;
+  state.publishers = data.publishers || [];
+  state.categories = data.categories || [];
+  state.subjects = data.subjects || [];
+  state.majors = data.majors || [];
+  state.threshold = data.threshold;
+
+  document.getElementById('thresholdValue').textContent = state.threshold;
+  updateCategories();
+  renderBooks();
+  renderPagination();
+  loadStats();
+}
+
+async function loadStats() {
+  const data = await api('/api/books/trending');
+  const totalBooks = state.total || data.length;
+  const totalClicks = data.reduce((sum, b) => sum + b.click_count, 0);
+  document.getElementById('statBooks').textContent = totalBooks;
+  document.getElementById('statClicks').textContent = totalClicks;
+}
+
+// ==================== 渲染 ====================
+function updateCategories() {
+  const pubSel = document.getElementById('publisherFilter');
+  if (pubSel) {
+    pubSel.innerHTML = '<option value="">全部出版社</option>';
+    state.publishers.forEach(p => {
+      pubSel.innerHTML += `<option value="${p}" ${state.publisher === p ? 'selected' : ''}>${p}</option>`;
+    });
+  }
+
+  const subjSel = document.getElementById('subjectFilter');
+  if (subjSel) {
+    subjSel.innerHTML = '<option value="">全部学科门类</option>';
+    state.subjects.forEach(s => {
+      subjSel.innerHTML += `<option value="${s}" ${state.subject === s ? 'selected' : ''}>${s}</option>`;
+    });
+  }
+
+  const majorSel = document.getElementById('majorFilter');
+  if (majorSel) {
+    majorSel.innerHTML = '<option value="">全部专业</option>';
+    state.majors.forEach(m => {
+      majorSel.innerHTML += `<option value="${m}" ${state.major === m ? 'selected' : ''}>${m}</option>`;
+    });
+  }
+}
+
+function renderBooks() {
+  const grid = document.getElementById('bookGrid');
+  if (state.books.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <h3>暂无图书</h3>
+        <p>管理员尚未导入图书，请稍后再来</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = state.books.map(book => {
+    const isVoted = state.votedBooks[book.id];
+    const isReached = book.reach_threshold;
+    let voteClass = '';
+    let voteText = '👍 推荐这本书';
+    let disabled = false;
+
+    if (isReached) {
+      voteClass = 'reached';
+      voteText = '✅ 已入选采购书单';
+      disabled = true;
+    } else if (isVoted) {
+      voteClass = 'voted';
+      voteText = '✅ 已推荐';
+      disabled = true;
+    }
+
+    const coverHtml = book.cover_url
+      ? `<img src="${book.cover_url}" alt="${book.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+         <div class="cover-text" style="display:none">${book.title}</div>`
+      : `<div class="cover-text">${book.title}</div>`;
+
+    return `
+      <div class="book-card">
+        <div class="book-cover">
+          ${coverHtml}
+          ${isReached ? '<span class="book-badge recommended">⭐ 入选书单</span>'
+            : `<span class="book-badge">${book.click_count} 次推荐</span>`}
+        </div>
+        <div class="book-info">
+          <div class="book-title">${book.title}${book.subtitle ? '<span class="book-subtitle">'+escapeHtml(book.subtitle)+'</span>' : ''}</div>
+          <div class="book-meta">
+            ${book.author ? `<span>${book.author}</span>` : ''}
+            ${book.publisher ? `<span>${book.publisher}</span>` : ''}
+            ${book.pub_year ? `<span>${book.pub_year}</span>` : ''}
+            ${book.category ? `<span>${book.category}</span>` : ''}
+            ${book.recommended_subject ? `<span style="background:#f0fdf4;color:#166534">${book.recommended_subject}</span>` : ''}
+            ${book.recommended_major ? `<span title="${escapeHtml(book.recommended_major)}" style="background:#fef3c7;color:#92400e">${escapeHtml(book.recommended_major.length > 12 ? book.recommended_major.substring(0,12)+'…' : book.recommended_major)}</span>` : ''}
+            ${book.clc_number ? `<span title="中图分类">${book.clc_number}</span>` : ''}
+            ${book.price > 0 ? `<span>${book.price.toFixed(2)}</span>` : ''}
+          </div>
+          ${book.keywords ? `<div class="book-keywords">${escapeHtml(book.keywords).split(';').filter(Boolean).map(k=>'<span class="kw-tag">'+k.trim()+'</span>').join('')}</div>` : ''}
+          ${book.description ? `<div class="book-desc">${escapeHtml(book.description)}</div>` : ''}
+          <div class="heat-count">已被 <strong>${book.click_count}</strong> 人推荐</div>
+        </div>
+        <button class="btn-recommend ${voteClass}" onclick="recommendBook(${book.id})" ${disabled ? 'disabled' : ''}>
+          ${voteText}
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(state.total / state.perPage);
+  if (totalPages <= 1) {
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+  let html = '';
+  html += `<button onclick="goPage(${state.page - 1})" ${state.page <= 1 ? 'disabled' : ''}>上一页</button>`;
+  html += `<span class="current">第 ${state.page} / ${totalPages} 页（共 ${state.total} 本）</span>`;
+  html += `<button onclick="goPage(${state.page + 1})" ${state.page >= totalPages ? 'disabled' : ''}>下一页</button>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+// ==================== 交互 ====================
+async function recommendBook(bookId) {
+  try {
+    const data = await api('/api/books/' + bookId + '/click', { method: 'POST' });
+    state.votedBooks[bookId] = Date.now();
+    localStorage.setItem('voted_books', JSON.stringify(state.votedBooks));
+    showToast('推荐成功！感谢您的参与 🎉', 'success');
+    loadBooks();
+  } catch (e) {
+    if (e.message.includes('已推荐')) {
+      state.votedBooks[bookId] = Date.now();
+      localStorage.setItem('voted_books', JSON.stringify(state.votedBooks));
+      loadBooks();
+      showToast(e.message, 'info');
+    } else {
+      showToast(e.message || '操作失败', 'error');
+    }
+  }
+}
+
+function goPage(page) {
+  const totalPages = Math.ceil(state.total / state.perPage);
+  if (page < 1 || page > totalPages) return;
+  state.page = page;
+  loadBooks();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showToast(msg, type) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ==================== 搜索/筛选事件 ====================
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    state.search = this.value.trim();
+    state.page = 1;
+    loadBooks();
+  }, 400);
+});
+
+document.getElementById('publisherFilter').addEventListener('change', function() {
+  state.publisher = this.value;
+  state.page = 1;
+  loadBooks();
+});
+
+document.getElementById('subjectFilter').addEventListener('change', function() {
+  state.subject = this.value;
+  state.page = 1;
+  loadBooks();
+});
+
+document.getElementById('majorFilter').addEventListener('change', function() {
+  state.major = this.value;
+  state.page = 1;
+  loadBooks();
+});
+
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    state.sort = this.dataset.sort;
+    state.page = 1;
+    loadBooks();
+  });
+});
+
+// ==================== 清理过期投票记录 ====================
+function cleanVotedBooks() {
+  const now = Date.now();
+  const hours = parseInt(localStorage.getItem('cooldown_hours') || '24');
+  let changed = false;
+  Object.keys(state.votedBooks).forEach(bookId => {
+    if (now - state.votedBooks[bookId] > hours * 3600 * 1000) {
+      delete state.votedBooks[bookId];
+      changed = true;
+    }
+  });
+  if (changed) {
+    localStorage.setItem('voted_books', JSON.stringify(state.votedBooks));
+  }
+}
+
+// ==================== 初始化 ====================
+cleanVotedBooks();
+loadBooks();
+</script>
+</body>
+</html>

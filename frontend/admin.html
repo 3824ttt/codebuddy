@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>管理后台 · 读者荐读系统</title>
+<style>
+:root {
+  --primary: #4f46e5; --primary-light: #e0e7ff; --success: #10b981;
+  --warning: #f59e0b; --danger: #ef4444; --bg: #f1f5f9;
+  --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b;
+  --border: #e2e8f0; --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+}
+/* ======= Login ======= */
+.login-overlay { position: fixed; inset:0; background: #fff; display: flex; align-items: center; justify-content: center; z-index: 999; }
+.login-box { background: var(--card-bg); border-radius: 16px; padding: 48px 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 380px; text-align: center; }
+.login-box h1 { font-size: 24px; margin-bottom: 8px; }
+.login-box p { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+.login-box input { width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; margin-bottom: 16px; }
+.login-box input:focus { border-color: var(--primary); }
+.login-box button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+.login-box button:hover { background: #4338ca; }
+.login-error { color: var(--danger); font-size: 13px; margin-top: 8px; }
+
+/* ======= Layout ======= */
+.app { display: none; }
+.app.show { display: flex; }
+.sidebar { width: 220px; background: var(--card-bg); border-right: 1px solid var(--border); min-height: 100vh; padding: 20px 0; position: sticky; top: 0; }
+.sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.sidebar-nav { padding: 8px 0; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: all 0.15s; border-left: 3px solid transparent; }
+.nav-item:hover { background: #f8fafc; color: var(--text); }
+.nav-item.active { background: var(--primary-light); color: var(--primary); border-left-color: var(--primary); font-weight: 600; }
+.tag-rule { display:inline-block; font-size:10px; padding:1px 6px; border-radius:10px; background:#dbeafe; color:#2563eb; margin-left:6px; }
+.tag-ai { display:inline-block; font-size:10px; padding:1px 6px; border-radius:10px; background:#fce7f3; color:#db2777; margin-left:6px; }
+.classify-progress { font-size:12px; color:var(--text-secondary); margin-left:8px; display:none; }
+.main-content { flex: 1; padding: 28px 32px; max-width: 1400px; }
+.page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.page-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ======= Stats ======= */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.stat-card { background: var(--card-bg); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.stat-card .stat-label { font-size: 13px; color: var(--text-secondary); }
+.stat-card .stat-value { font-size: 32px; font-weight: 700; margin-top: 4px; }
+.stat-card.blue .stat-value { color: var(--primary); }
+.stat-card.green .stat-value { color: var(--success); }
+.stat-card.orange .stat-value { color: var(--warning); }
+.stat-card.red .stat-value { color: var(--danger); }
+
+/* ======= Table ======= */
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+.toolbar input, .toolbar select { padding: 9px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; outline: none; }
+.toolbar input:focus, .toolbar select:focus { border-color: var(--primary); }
+.toolbar input { flex: 1; min-width: 200px; }
+.btn { cursor: pointer; font-weight: 500; transition: all 0.2s; padding: 9px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; outline: none; }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: #4338ca; }
+.btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+.btn-success:hover { background: #059669; }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-danger:hover { background: #dc2626; }
+.btn-outline { background: #fff; color: var(--primary); border-color: var(--primary); }
+.btn-outline:hover { background: var(--primary-light); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+.table-wrap { overflow-x: auto; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.data-table th { text-align: left; padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-secondary); font-size: 12px; position: sticky; top: 0; }
+.data-table td { padding: 8px; border-bottom: 1px solid var(--border); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #f8fafc; }
+.td-title { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-pending { background: #e2e8f0; color: #64748b; }
+.badge-recommended { background: #dbeafe; color: #2563eb; }
+.badge-ordered { background: #fef3c7; color: #92400e; }
+.badge-received { background: #d1fae5; color: #065f46; }
+.badge-draft { background: #f3f4f6; color: #6b7280; }
+.badge-submitted { background: #dbeafe; color: #2563eb; }
+
+/* ======= Modal ======= */
+.modal-overlay { position: fixed; inset:0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--card-bg); border-radius: 16px; padding: 32px; width: 90%; max-width: 750px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.modal h2 { font-size: 20px; margin-bottom: 16px; }
+
+/* Tabs */
+.tab-btns { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+.tab-btn { padding: 10px 24px; border: none; background: none; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* File upload area */
+.upload-area { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px; }
+.upload-area:hover, .upload-area.dragover { border-color: var(--primary); background: var(--primary-light); }
+.upload-area p { color: var(--text-secondary); font-size: 14px; margin-top: 8px; }
+.upload-area .icon { font-size: 40px; }
+.upload-area input[type=file] { display: none; }
+.file-name { font-size: 13px; color: var(--success); margin-top: 8px; font-weight: 500; }
+
+.fields-note { font-size: 12px; color: var(--text-secondary); background: #f8fafc; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; line-height: 1.8; }
+.fields-note code { background: #e0e7ff; color: var(--primary); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+.modal textarea { width: 100%; min-height: 200px; padding: 14px; border: 2px solid var(--border); border-radius: 8px; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; resize: vertical; outline: none; }
+.modal textarea:focus { border-color: var(--primary); }
+.modal .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.modal .form-row input { flex: 1; padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; }
+.modal .form-row input:focus { border-color: var(--primary); }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.modal-actions button { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
+
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 500; z-index: 2000; animation: slideDown 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+@keyframes slideDown { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.info { background: var(--primary); }
+.status-wait { font-size: 13px; color: var(--text-secondary); margin-top: 8px; }
+.detail-toggle { cursor: pointer; color: var(--primary); font-size: 12px; user-select: none; }
+.detail-row { display: none; }
+.detail-row.show { display: table-row; }
+.detail-row td { background: #fafbff; font-size: 12px; color: var(--text-secondary); padding: 8px 12px; }
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginScreen">
+  <div class="login-box">
+    <h1>管理后台</h1>
+    <p>读者荐读系统</p>
+    <input type="password" id="loginPassword" placeholder="请输入管理员密码" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">登 录</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div class="app" id="appMain">
+  <aside class="sidebar">
+    <div class="sidebar-brand">后台管理</div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" data-page="dashboard">仪表盘</div>
+      <div class="nav-item" data-page="books">图书管理</div>
+      <div class="nav-item" data-page="recommendations">荐读书单</div>
+      <div class="nav-item" data-page="orders">采购订单</div>
+      <div class="nav-item" data-page="config">系统配置</div>
+    </nav>
+  </aside>
+
+  <section class="main-content">
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <h2 class="page-title">仪表盘</h2>
+      <p class="page-subtitle">系统运行概况</p>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <!-- Books -->
+    <div class="page" id="page-books">
+      <h2 class="page-title">图书管理</h2>
+      <p class="page-subtitle">管理待选图书，支持 Excel / JSON 批量导入</p>
+      <div class="toolbar">
+        <input type="text" id="bookSearch" placeholder="搜索书名/作者/ISBN...">
+        <select id="bookStatusFilter">
+          <option value="">全部状态</option>
+          <option value="pending">待推荐</option>
+          <option value="recommended">已入选</option>
+          <option value="ordered">已下单</option>
+          <option value="received">已到货</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="downloadTemplate()">下载Excel模板</button>
+        <button class="btn btn-primary" onclick="openImportModal()">+ 批量导入</button>
+        <button class="btn btn-primary" style="background:#8b5cf6;border-color:#8b5cf6" onclick="doBatchClassify()" title="对未分类图书自动分类">智能分类</button>
+        <button class="btn btn-primary" style="background:#06b6d4;border-color:#06b6d4" onclick="doBatchRecommend()" title="AI分析合适的专业学科">专业推荐</button>
+        <button class="btn btn-outline btn-sm" onclick="openClassifyConfig()">AI配置</button>
+      </div>
+      <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>书名</th><th>作者</th><th>出版社</th>
+            <th>ISBN</th><th>价格</th><th>分类</th><th>中图分类</th>
+            <th>学科/专业</th>
+            <th>出版年</th><th>点击</th><th>状态</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="bookTableBody"></tbody>
+      </table>
+      </div>
+      <div style="margin-top:16px;font-size:14px;color:var(--text-secondary)" id="bookPagination"></div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="page" id="page-recommendations">
+      <h2 class="page-title">荐读书单</h2>
+      <p class="page-subtitle">已达到推荐阈值，可勾选生成采购订单</p>
+      <div class="toolbar">
+        <button class="btn btn-success" onclick="createOrderFromRec()">生成采购订单</button>
+        <button class="btn btn-outline" onclick="exportRecCSV()">导出CSV</button>
+      </div>
+      <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>选</th><th>书名</th><th>作者</th><th>出版社</th><th>ISBN</th><th>价格</th><th>中图分类</th><th>出版年</th><th>点击</th><th>进度</th></tr>
+        </thead>
+        <tbody id="recTableBody"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- Orders -->
+    <div class="page" id="page-orders">
+      <h2 class="page-title">采购订单</h2>
+      <p class="page-subtitle">向书商下单采购</p>
+      <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>订单号</th><th>书商</th><th>图书数量</th><th>总金额</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody id="orderTableBody"></tbody>
+      </table>
+      </div>
+    </div>
+
+    <!-- Config -->
+    <div class="page" id="page-config">
+      <h2 class="page-title">系统配置</h2>
+      <p class="page-subtitle">调整推荐阈值、冷却时间</p>
+      <div style="background:var(--card-bg);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);max-width:500px;">
+        <div style="margin-bottom:16px;">
+          <label style="font-size:14px;font-weight:600;display:block;margin-bottom:6px;">推荐阈值</label>
+          <input type="number" id="cfgThreshold" style="width:100%;padding:10px;border:2px solid var(--border);border-radius:8px;font-size:15px;outline:none;" min="1">
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:14px;font-weight:600;display:block;margin-bottom:6px;">冷却时间(小时)</label>
+          <input type="number" id="cfgCooldown" style="width:100%;padding:10px;border:2px solid var(--border);border-radius:8px;font-size:15px;outline:none;" min="1">
+        </div>
+        <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ========== Import Modal ========== -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h2>批量导入图书</h2>
+    <div class="tab-btns">
+      <button class="tab-btn active" onclick="switchTab('excel')">Excel 上传 (.xlsx)</button>
+      <button class="tab-btn" onclick="switchTab('json')">JSON 导入</button>
+    </div>
+
+    <!-- Excel Tab -->
+    <div class="tab-panel active" id="tab-excel">
+      <div class="fields-note">
+        <strong>支持字段：</strong>
+        <code>完整书名</code> <code>副书名</code> <code>分卷名</code> <code>分卷号</code>
+        <code>作者</code> <code>丛书名</code> <code>丛书作者</code>
+        <code>出版社</code> <code>出版年</code> <code>页数</code>
+        <code>ＩＳＢＮ</code> <code>价格</code> <code>分类</code>
+        <code>主题词</code> <code>中图分类</code>
+        <code>内容简介</code> <code>一般附注</code>
+      </div>
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">&#x1F4C1;</div>
+        <p>点击选择文件 或 拖拽 .xlsx 文件到此处</p>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+        <div class="file-name" id="fileName"></div>
+      </div>
+      <div class="modal-actions">
+        <button style="background:#e2e8f0;color:#475569" onclick="closeImportModal()">取消</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadTemplate()">下载模板</button>
+        <button class="btn btn-primary" id="btnExcelImport" onclick="doExcelImport()" disabled>上传并导入</button>
+      </div>
+      <div id="excelImportStatus"></div>
+    </div>
+
+    <!-- JSON Tab -->
+    <div class="tab-panel" id="tab-json">
+      <div class="fields-note">
+        <strong>JSON 字段：</strong>
+        <code>title</code> <code>subtitle</code> <code>volume_name</code> <code>volume_no</code>
+        <code>author</code> <code>series_name</code> <code>series_author</code>
+        <code>publisher</code> <code>isbn</code> <code>price</code> <code>pub_year</code> <code>pages</code>
+        <code>category</code> <code>clc_number</code> <code>keywords</code>
+        <code>description</code> <code>notes</code> <code>cover_url</code>
+      </div>
+      <textarea id="importData" placeholder='[{"title":"三体","author":"刘慈欣","publisher":"重庆出版社","isbn":"9787536692930","price":23,"category":"科幻","clc_number":"I247.5","pub_year":"2008","pages":"302","keywords":"科幻;外星文明","description":"..."}]'></textarea>
+      <div class="modal-actions">
+        <button style="background:#e2e8f0;color:#475569" onclick="closeImportModal()">取消</button>
+        <button class="btn btn-primary" onclick="doJsonImport()">确认导入</button>
+      </div>
+      <div id="jsonImportStatus" style="margin-top:12px;font-size:13px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Classify Config Modal ========== -->
+<div class="modal-overlay" id="classifyConfigModal">
+  <div class="modal">
+    <h2>AI 分类配置（可选）</h2>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
+      默认使用本地规则引擎自动分类。如需处理模糊书名，可配置 OpenAI 兼容 API 增强准确率。
+    </p>
+    <div class="form-row" style="flex-direction:column;gap:12px;">
+      <input type="text" id="aiApiUrl" placeholder="API地址 (如 https://api.openai.com/v1/chat/completions)">
+      <input type="password" id="aiApiKey" placeholder="API Key">
+      <input type="text" id="aiModel" placeholder="模型名称 (如 gpt-3.5-turbo)">
+    </div>
+    <div id="aiConfigStatus" style="margin-top:8px;font-size:13px;"></div>
+    <div class="modal-actions">
+      <button style="background:#e2e8f0;color:#475569" onclick="closeClassifyConfig()">取消</button>
+      <button class="btn btn-primary" onclick="saveAIConfig()">保存配置</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Order Modal ========== -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal">
+    <h2>创建采购订单</h2>
+    <div class="form-row">
+      <input type="text" id="orderVendor" placeholder="书商名称">
+      <input type="text" id="orderContact" placeholder="联系方式">
+    </div>
+    <input type="text" id="orderNote" placeholder="备注信息" style="width:100%;padding:10px;border:2px solid var(--border);border-radius:8px;font-size:14px;outline:none;margin-bottom:12px;">
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">已选图书：<strong id="orderBookCount">0</strong> 本</p>
+    <div id="orderBookList" style="max-height:200px;overflow-y:auto;font-size:13px;"></div>
+    <div class="modal-actions">
+      <button style="background:#e2e8f0;color:#475569" onclick="closeOrderModal()">取消</button>
+      <button class="btn btn-success" onclick="doCreateOrder()">提交订单</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('admin_token') || '';
+let bookPage = 1, selectedRecIds = [], excelFile = null;
+
+function apiHeaders() {
+  return { 'X-Admin-Token': TOKEN };
+}
+async function api(path, options = {}) {
+  try {
+    const h = options.headers || {};
+    if (!options.body || options.body instanceof FormData) {
+      delete h['Content-Type'];
+    } else {
+      h['Content-Type'] = 'application/json';
+    }
+    const { headers: _h, ...fetchOptions } = options;
+    const res = await fetch(path, { headers: { ...apiHeaders(), ...h }, ...fetchOptions });
+    if (res.status === 401) { logout(); throw new Error('登录已过期'); }
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await res.json();
+      if (!res.ok && data.error) throw new Error(data.error);
+      return data;
+    }
+    if (!res.ok) throw new Error('请求失败');
+    return res;
+  } catch (e) {
+    if (e.message !== '登录已过期') toast(e.message, 'error');
+    throw e;
+  }
+}
+
+function toast(msg, type) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'toast ' + type; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ======= Auth =======
+async function doLogin() {
+  const pwd = document.getElementById('loginPassword').value;
+  try {
+    const res = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password:pwd}) });
+    const data = await res.json();
+    if (data.success) {
+      TOKEN = data.token; localStorage.setItem('admin_token', TOKEN);
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appMain').classList.add('show');
+      loadDashboard();
+    } else {
+      document.getElementById('loginError').textContent = data.error || '密码错误';
+    }
+  } catch(e) { document.getElementById('loginError').textContent = '网络错误'; }
+}
+function logout() {
+  TOKEN = ''; localStorage.removeItem('admin_token');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appMain').classList.remove('show');
+}
+
+// ======= Nav =======
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+    switchPage(this.dataset.page);
+  });
+});
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'books') loadBooks();
+  if (page === 'recommendations') loadRecommendations();
+  if (page === 'orders') loadOrders();
+  if (page === 'config') loadConfig();
+}
+
+// ======= Dashboard =======
+async function loadDashboard() {
+  const data = await api('/api/admin/stats');
+  const s = [
+    {label:'图书总数',value:data.total_books,cls:'blue'},
+    {label:'入选书单',value:data.recommended,cls:'green'},
+    {label:'已下单',value:data.ordered,cls:'orange'},
+    {label:'已到货',value:data.received,cls:'red'},
+    {label:'总推荐次数',value:data.total_clicks,cls:'blue'},
+    {label:'采购订单',value:data.total_orders,cls:'green'},
+    {label:'推荐阈值',value:data.threshold,cls:'orange'},
+  ];
+  document.getElementById('statsGrid').innerHTML = s.map(c =>
+    `<div class="stat-card ${c.cls}"><div class="stat-label">${c.label}</div><div class="stat-value">${c.value}</div></div>`
+  ).join('');
+}
+
+// ======= Classify =======
+function openClassifyConfig() {
+  document.getElementById('classifyConfigModal').classList.add('show');
+  api('/api/admin/classify/config').then(d => {
+    document.getElementById('aiApiUrl').value = d.api_url || '';
+    document.getElementById('aiModel').value = d.model || '';
+    document.getElementById('aiConfigStatus').innerHTML = d.enabled
+      ? '<span style="color:var(--success)">AI 已启用</span>'
+      : '<span style="color:var(--text-secondary)">AI 未启用（将使用规则引擎）</span>';
+  }).catch(()=>{});
+}
+function closeClassifyConfig() { document.getElementById('classifyConfigModal').classList.remove('show'); }
+async function saveAIConfig() {
+  const api_url = document.getElementById('aiApiUrl').value.trim();
+  const api_key = document.getElementById('aiApiKey').value;
+  const model = document.getElementById('aiModel').value.trim() || 'gpt-3.5-turbo';
+  const body = {};
+  if (api_url) body.api_url = api_url;
+  if (api_key) body.api_key = api_key;
+  if (model) body.model = model;
+  try {
+    await api('/api/admin/classify/config', { method:'POST', body: JSON.stringify(body) });
+    toast('AI 配置已保存', 'success');
+    closeClassifyConfig();
+  } catch(e) { document.getElementById('aiConfigStatus').innerHTML=`<span style="color:var(--danger)">${e.message}</span>`; }
+}
+
+async function doBatchClassify() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '分类中...';
+  try {
+    const data = await api('/api/admin/classify/batch', { method:'POST', body: JSON.stringify({}) });
+    let msg = `完成：${data.classified} 本已分类`;
+    if (data.results) {
+      const ruleCnt = data.results.filter(r=>r.method==='rule').length;
+      const aiCnt = data.results.filter(r=>r.method==='ai').length;
+      msg += `（规则:${ruleCnt}`;
+      if (aiCnt > 0) msg += ` AI:${aiCnt}`;
+      msg += `）`;
+    }
+    toast(msg, 'success');
+    loadBooks();
+  } catch(e) { toast('分类失败: '+e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '智能分类'; }
+}
+
+async function classifySingle(bookId) {
+  try {
+    const data = await api(`/api/admin/classify/${bookId}`, { method:'POST' });
+    toast(`已分类为：${data.result.category}`, 'success');
+    loadBooks();
+  } catch(e) { toast('分类失败: '+e.message, 'error'); }
+}
+
+// ======= Major Recommendations =======
+async function doBatchRecommend() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '推荐中...';
+  try {
+    const data = await api('/api/admin/recommend-majors/batch', { method:'POST' });
+    let msg = `完成：${data.total} 本已推荐`;
+    if (data.ai_count > 0) msg += `（AI:${data.ai_count}`;
+    if (data.rule_count > 0) msg += ` 规则:${data.rule_count}`;
+    if (data.ai_count > 0 || data.rule_count > 0) msg += `）`;
+    toast(msg, 'success');
+    loadBooks();
+  } catch(e) { toast('专业推荐失败: '+e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '专业推荐'; }
+}
+
+async function recommendSingle(bookId) {
+  try {
+    const data = await api(`/api/admin/recommend-majors/${bookId}`, { method:'POST' });
+    toast(`推荐专业：${data.result.recommended_major}`, 'success');
+    loadBooks();
+  } catch(e) { toast('推荐失败: '+e.message, 'error'); }
+}
+
+// ======= Books =======
+async function loadBooks() {
+  const search = document.getElementById('bookSearch').value;
+  const status = document.getElementById('bookStatusFilter').value;
+  const params = new URLSearchParams({ search, status, page: bookPage, per_page: 15 });
+  const data = await api('/api/admin/books?' + params);
+  const statusMap = {
+    pending: '<span class="badge badge-pending">待推荐</span>',
+    recommended: '<span class="badge badge-recommended">已入选</span>',
+    ordered: '<span class="badge badge-ordered">已下单</span>',
+    received: '<span class="badge badge-received">已到货</span>',
+  };
+  document.getElementById('bookTableBody').innerHTML = data.books.map(b => {
+    const catTag = b.category
+      ? `${esc(b.category)}<span class="tag-rule" title="规则自动分类">R</span>`
+      : `<span style="color:var(--text-secondary)">-</span>`;
+    const majorTag = b.recommended_major
+      ? `<div style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(b.recommended_major)}">${esc(b.recommended_subject)}<br><span style="color:var(--text-secondary)">${esc(b.recommended_major)}</span></div>`
+      : `<span style="color:var(--text-secondary);font-size:12px">-</span>`;
+    return `
+    <tr>
+      <td>${b.id}</td>
+      <td class="td-title" title="${esc(b.title)}"><strong>${esc(b.title)}</strong>${b.subtitle ? '<br><span style="color:var(--text-secondary);font-size:11px">'+esc(b.subtitle)+'</span>' : ''}</td>
+      <td>${esc(b.author)}</td>
+      <td>${esc(b.publisher)}</td>
+      <td style="font-family:monospace;font-size:11px;">${esc(b.isbn)}</td>
+      <td>${b.price ? '¥'+b.price.toFixed(2) : '-'}</td>
+      <td>${catTag}</td>
+      <td style="font-family:monospace;font-size:11px;">${esc(b.clc_number) || '-'}</td>
+      <td>${majorTag}</td>
+      <td>${esc(b.pub_year)}</td>
+      <td>${b.click_count}</td>
+      <td>${statusMap[b.status] || b.status}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="classifySingle(${b.id})" title="重新分类">分类</button>
+        <button class="btn btn-outline btn-sm" onclick="recommendSingle(${b.id})" title="AI专业推荐" style="color:#06b6d4;border-color:#06b6d4">推荐</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">删除</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="14" style="text-align:center;color:var(--text-secondary);padding:24px;">暂无图书</td></tr>';
+
+  const tp = Math.ceil(data.total / 15);
+  const pagEl = document.getElementById('bookPagination');
+  if (tp > 1) {
+    pagEl.innerHTML = `<span>第 ${bookPage}/${tp} 页（共${data.total}本）</span>
+       <button class="btn btn-outline btn-sm pag-prev" ${bookPage<=1?'disabled':''}>上一页</button>
+       <button class="btn btn-outline btn-sm pag-next" ${bookPage>=tp?'disabled':''}>下一页</button>`;
+    pagEl.querySelector('.pag-prev')?.addEventListener('click', () => { if (bookPage > 1) { bookPage--; loadBooks(); } });
+    pagEl.querySelector('.pag-next')?.addEventListener('click', () => { if (bookPage < tp) { bookPage++; loadBooks(); } });
+  } else {
+    pagEl.innerHTML = '';
+  }
+}
+
+document.getElementById('bookSearch').addEventListener('input', debounce(() => { bookPage=1; loadBooks(); }, 400));
+document.getElementById('bookStatusFilter').addEventListener('change', () => { bookPage=1; loadBooks(); });
+
+async function deleteBook(id) {
+  if (!confirm('确认删除该书？')) return;
+  await api('/api/admin/books/' + id, { method:'DELETE' });
+  toast('已删除', 'success'); loadBooks();
+}
+
+// ======= Import =======
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('show');
+}
+function openImportModal() {
+  document.getElementById('importData').value = '';
+  document.getElementById('jsonImportStatus').innerHTML = '';
+  document.getElementById('excelImportStatus').innerHTML = '';
+  document.getElementById('fileName').textContent = '';
+  document.getElementById('btnExcelImport').disabled = true;
+  excelFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('importModal').classList.add('show');
+}
+function closeImportModal() { document.getElementById('importModal').classList.remove('show'); }
+
+// Excel
+function handleFileSelect(e) {
+  const f = e.target.files[0] || (e.dataTransfer && e.dataTransfer.files[0]);
+  if (!f) return;
+  if (!f.name.toLowerCase().endsWith('.xlsx') && !f.name.toLowerCase().endsWith('.xls')) {
+    toast('仅支持 .xlsx / .xls 文件', 'error'); return;
+  }
+  excelFile = f;
+  document.getElementById('fileName').textContent = f.name + ' (' + (f.size/1024).toFixed(0) + ' KB)';
+  document.getElementById('btnExcelImport').disabled = false;
+}
+async function doExcelImport() {
+  if (!excelFile) return toast('请先选择文件', 'error');
+  const status = document.getElementById('excelImportStatus');
+  status.innerHTML = '<div class="status-wait">正在上传解析...</div>';
+  const fd = new FormData(); fd.append('file', excelFile);
+  try {
+    const res = await api('/api/admin/books/import-excel', { method:'POST', body: fd });
+    let msg = `导入成功 ${res.inserted} 本`;
+    if (res.skipped > 0) msg += `，跳过 ${res.skipped} 本`;
+    if (res.errors && res.errors.length > 0) {
+      msg += '<br><span style="color:var(--warning);font-size:11px;">⚠ ' + res.errors.slice(0,5).join('<br>') + '</span>';
+    }
+    status.innerHTML = `<span style="color:var(--success)">${msg}</span>`;
+    toast(`成功导入 ${res.inserted} 本`, 'success');
+    loadBooks();
+  } catch(e) {
+    status.innerHTML = `<span style="color:var(--danger)">导入失败：${e.message}</span>`;
+  }
+}
+
+// JSON
+async function doJsonImport() {
+  const raw = document.getElementById('importData').value.trim();
+  if (!raw) return toast('请输入JSON数据', 'error');
+  const status = document.getElementById('jsonImportStatus');
+  try {
+    const books = JSON.parse(raw);
+    if (!Array.isArray(books)) throw new Error('请传入JSON数组');
+    const res = await api('/api/admin/books/import', { method:'POST', body: JSON.stringify({books}) });
+    status.innerHTML = `<span style="color:var(--success)">成功导入 ${res.inserted} 本，跳过重复 ${res.skipped} 本</span>`;
+    if (res.inserted > 0) loadBooks();
+  } catch(e) {
+    status.innerHTML = `<span style="color:var(--danger)">错误：${e.message}</span>`;
+  }
+}
+
+async function downloadTemplate() {
+  try {
+    const res = await fetch('/api/admin/books/template', { headers: apiHeaders() });
+    if (!res.ok) throw new Error('下载失败');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='图书导入模板.xlsx'; a.click();
+    URL.revokeObjectURL(url); toast('模板已下载', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// Drag & drop for upload area
+const uploadArea = document.getElementById('uploadArea');
+if (uploadArea) {
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+  uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('dragover'); handleFileSelect(e); });
+}
+
+// ======= Recommendations =======
+async function loadRecommendations() {
+  const data = await api('/api/admin/recommendations');
+  selectedRecIds = [];
+  document.getElementById('recTableBody').innerHTML = data.books.map(b => `
+    <tr>
+      <td><input type="checkbox" value="${b.id}" class="rec-checkbox" onchange="toggleRec(${b.id}, this.checked)"></td>
+      <td class="td-title" title="${esc(b.title)}"><strong>${esc(b.title)}</strong></td>
+      <td>${esc(b.author)}</td>
+      <td>${esc(b.publisher)}</td>
+      <td style="font-family:monospace;font-size:11px;">${esc(b.isbn)}</td>
+      <td>${b.price ? '¥'+b.price.toFixed(2) : '-'}</td>
+      <td style="font-family:monospace;font-size:11px;">${esc(b.clc_number)}</td>
+      <td>${esc(b.pub_year)}</td>
+      <td>${b.click_count}</td>
+      <td>${b.progress}%</td>
+    </tr>
+  `).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-secondary);padding:24px;">暂无达到阈值的图书</td></tr>';
+}
+
+function toggleRec(id, checked) {
+  if (checked) selectedRecIds.push(id);
+  else selectedRecIds = selectedRecIds.filter(i => i !== id);
+}
+
+function createOrderFromRec() {
+  if (selectedRecIds.length === 0) return toast('请先勾选图书', 'info');
+  document.getElementById('orderBookCount').textContent = selectedRecIds.length;
+  document.getElementById('orderBookList').innerHTML = selectedRecIds.map(id =>
+    `<div style="padding:4px 0;">图书ID: ${id}</div>`).join('');
+  document.getElementById('orderVendor').value = '';
+  document.getElementById('orderContact').value = '';
+  document.getElementById('orderNote').value = '';
+  document.getElementById('orderModal').classList.add('show');
+}
+
+function exportRecCSV() {
+  api('/api/admin/recommendations').then(data => {
+    let csv = '\uFEFF完整书名,副书名,作者,丛书名,出版社,ISBN,价格,中图分类,出版年,页数,主题词,内容简介,点击量\n';
+    data.books.forEach(b => {
+      csv += `"${b.title}","${b.subtitle||''}","${b.author||''}","${b.series_name||''}","${b.publisher||''}","${b.isbn||''}",${b.price||0},"${b.clc_number||''}","${b.pub_year||''}","${b.pages||''}","${b.keywords||''}","${(b.description||'').replace(/"/g,'""')}",${b.click_count}\n`;
+    });
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='荐读书单.csv'; a.click();
+  });
+}
+
+// ======= Orders =======
+function closeOrderModal() { document.getElementById('orderModal').classList.remove('show'); }
+async function doCreateOrder() {
+  const vendor = document.getElementById('orderVendor').value.trim();
+  if (!vendor) return toast('请填写书商名称', 'error');
+  const res = await api('/api/admin/orders', { method:'POST', body: JSON.stringify({
+    book_ids: selectedRecIds, vendor,
+    contact: document.getElementById('orderContact').value.trim(),
+    note: document.getElementById('orderNote').value.trim()
+  })});
+  if (res.success) { toast(`订单 #${res.order_id} 创建成功！`, 'success'); closeOrderModal(); switchPage('orders'); }
+}
+
+async function loadOrders() {
+  const data = await api('/api/admin/orders');
+  const sm = {draft:'<span class="badge badge-draft">草稿</span>',submitted:'<span class="badge badge-submitted">已提交</span>',received:'<span class="badge badge-received">已到货</span>'};
+  document.getElementById('orderTableBody').innerHTML = data.orders.map(o => {
+    const items = o.items || [];
+    return `<tr>
+      <td>#${o.id}</td>
+      <td>${esc(o.vendor)}</td>
+      <td>${items.length} 本<br><span style="font-size:11px;color:var(--text-secondary)">${items.map(i=>esc(i.title)).join('<br>')||'-'}</span></td>
+      <td>${o.total_amount.toFixed(2)}</td>
+      <td>${sm[o.status]||o.status}</td>
+      <td>${o.created_at ? new Date(o.created_at).toLocaleString('zh-CN') : '-'}</td>
+      <td>${o.status!=='received' ? `<button class="btn btn-success btn-sm" onclick="markReceived(${o.id})">确认到货</button>` : '已到货'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;">暂无订单</td></tr>';
+}
+
+async function markReceived(id) {
+  if (!confirm('确认该订单已到货？')) return;
+  await api('/api/admin/orders/'+id+'/status', {method:'PUT', body:JSON.stringify({status:'received'})});
+  toast('已标记到货', 'success'); loadOrders();
+}
+
+// ======= Config =======
+async function loadConfig() {
+  const data = await api('/api/admin/config');
+  document.getElementById('cfgThreshold').value = data.click_threshold || 10;
+  document.getElementById('cfgCooldown').value = data.click_cooldown_hours || 24;
+}
+async function saveConfig() {
+  const threshold = parseInt(document.getElementById('cfgThreshold').value);
+  const cooldown = parseInt(document.getElementById('cfgCooldown').value);
+  if (threshold < 1 || cooldown < 1) return toast('数值必须大于0', 'error');
+  await api('/api/admin/config', {method:'PUT', body:JSON.stringify({click_threshold:threshold, click_cooldown_hours:cooldown})});
+  toast('配置已保存', 'success');
+}
+
+function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+
+if (TOKEN) {
+  api('/api/admin/stats').then(() => {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appMain').classList.add('show');
+    loadDashboard();
+  }).catch(() => { TOKEN=''; localStorage.removeItem('admin_token'); });
+}
+</script>
+</body>
+</html>
