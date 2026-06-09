@@ -93,55 +93,41 @@ body {
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: #f8fafc; }
 .td-title { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-cover { width: 75px; padding: 4px !important; cursor: default; }
+.td-cover { width: 75px; padding: 4px !important; cursor: default; position: relative; }
 .td-cover img { width: 68px; height: 96px; object-fit: contain; border-radius: 4px; display: block; background: #f1f5f9; }
 .td-cover .no-cover { width: 68px; height: 96px; background: #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-secondary); }
 
-/* Cover hover detail tooltip */
-#coverDetailTip {
-  position: fixed;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.18s ease;
-  background: #1e293b;
+/* Cover hover detail tooltip — overlay from bottom */
+.cover-tip {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  width: auto;
+  max-height: 88px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.92);
   color: #f1f5f9;
-  border-radius: 10px;
-  padding: 14px 16px;
-  font-size: 12px;
-  line-height: 1.7;
-  min-width: 200px;
-  max-width: 320px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  padding: 6px 7px;
+  font-size: 10px;
+  line-height: 1.55;
+  border-radius: 0 0 4px 4px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 5;
 }
-#coverDetailTip.show { opacity: 1; }
-#coverDetailTip .tip-row {
+.td-cover:hover .cover-tip { opacity: 1; transform: translateY(0); }
+.cover-tip .ct-row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px;
+  margin-bottom: 1px;
 }
-#coverDetailTip .tip-label {
-  color: #94a3b8;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-#coverDetailTip .tip-val {
-  text-align: right;
-  color: #e2e8f0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-#coverDetailTip .tip-desc {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid #334155;
-  font-size: 11px;
-  color: #94a3b8;
-  line-height: 1.6;
-  max-height: 70px;
-  overflow: hidden;
-}
+.cover-tip .ct-label { color: #94a3b8; flex-shrink: 0; }
+.cover-tip .ct-val { text-align: right; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cover-tip .ct-desc { margin-top: 3px; padding-top: 3px; border-top: 1px solid #334155; color: #94a3b8; line-height: 1.5; max-height: 36px; overflow: hidden; }
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-pending { background: #e2e8f0; color: #64748b; }
@@ -432,12 +418,10 @@ body {
   </div>
 </div>
 
-<div id="coverDetailTip"></div>
 <script>
 let TOKEN = localStorage.getItem('admin_token') || '';
 let bookPage = 1, selectedRecIds = [], excelFile = null;
 let bookSort = 'id', bookSortOrder = 'desc';
-const bookDetailMap = {};
 
 function apiHeaders() {
   return { 'X-Admin-Token': TOKEN };
@@ -614,9 +598,28 @@ async function recommendSingle(bookId) {
 }
 
 // ======= Books =======
+function buildCoverTip(b) {
+  const rows = [];
+  if (b.pages) rows.push(`<div class="ct-row"><span class="ct-label">页数</span><span class="ct-val">${esc(b.pages)}页</span></div>`);
+  if (b.price > 0) rows.push(`<div class="ct-row"><span class="ct-label">定价</span><span class="ct-val">¥${b.price.toFixed(2)}</span></div>`);
+  if (b.binding) rows.push(`<div class="ct-row"><span class="ct-label">装帧</span><span class="ct-val">${esc(b.binding)}</span></div>`);
+  if (b.edition) rows.push(`<div class="ct-row"><span class="ct-label">版次</span><span class="ct-val">${esc(b.edition)}</span></div>`);
+  if (b.impression) rows.push(`<div class="ct-row"><span class="ct-label">印次</span><span class="ct-val">${esc(b.impression)}</span></div>`);
+  if (b.language) rows.push(`<div class="ct-row"><span class="ct-label">语言</span><span class="ct-val">${esc(b.language)}</span></div>`);
+  if (b.format) rows.push(`<div class="ct-row"><span class="ct-label">开本</span><span class="ct-val">${esc(b.format)}</span></div>`);
+  if (b.cip) rows.push(`<div class="ct-row"><span class="ct-label">CIP</span><span class="ct-val">${esc(b.cip)}</span></div>`);
+  if (b.clc_number) rows.push(`<div class="ct-row"><span class="ct-label">中图分类</span><span class="ct-val">${esc(b.clc_number)}</span></div>`);
+  if (b.keywords) rows.push(`<div class="ct-row"><span class="ct-label">关键词</span><span class="ct-val" style="color:#cbd5e1">${esc(b.keywords)}</span></div>`);
+  let descHtml = '';
+  if (b.description) {
+    const desc = b.description.length > 160 ? b.description.substring(0,160)+'…' : b.description;
+    descHtml = `<div class="ct-desc">${esc(desc)}</div>`;
+  }
+  if (rows.length === 0 && !descHtml) return '';
+  return `<div class="cover-tip">${rows.join('')}${descHtml}</div>`;
+}
+
 async function loadBooks() {
-  // 清空旧tooltip数据
-  for (const k in bookDetailMap) delete bookDetailMap[k];
   const search = document.getElementById('bookSearch').value;
   const status = document.getElementById('bookStatusFilter').value;
   const params = new URLSearchParams({ search, status, page: bookPage, per_page: 15, sort: bookSort, order: bookSortOrder });
@@ -634,11 +637,10 @@ async function loadBooks() {
     const majorTag = b.recommended_major
       ? `<div style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(b.recommended_major)}">${esc(b.recommended_subject)}<br><span style="color:var(--text-secondary)">${esc(b.recommended_major)}</span></div>`
       : `<span style="color:var(--text-secondary);font-size:12px">-</span>`;
+    const tipHtml = buildCoverTip(b);
     const coverHtml = b.cover_url
-      ? `<td class="td-cover" data-bid="${b.id}"><img src="${esc(b.cover_url)}" alt="封面" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="no-cover" style="display:none">📖</div></td>`
-      : `<td class="td-cover" data-bid="${b.id}"><div class="no-cover">📖</div></td>`;
-    // Store book details for cover hover tooltip
-    bookDetailMap[b.id] = b;
+      ? `<td class="td-cover"><img src="${esc(b.cover_url)}" alt="封面" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="no-cover" style="display:none">📖</div>${tipHtml}</td>`
+      : `<td class="td-cover"><div class="no-cover">📖</div>${tipHtml}</td>`;
     return `
     <tr>
       <td>${b.id}</td>
@@ -687,67 +689,6 @@ async function loadBooks() {
   } else {
     pagEl.innerHTML = '';
   }
-
-  // 初始化封面悬停详情
-  initCoverTooltips();
-}
-
-// ======= 封面悬停详情浮层 =======
-const tip = document.getElementById('coverDetailTip');
-let tipTimeout = null;
-
-function initCoverTooltips() {
-  document.querySelectorAll('.td-cover[data-bid]').forEach(td => {
-    td.addEventListener('mouseenter', showCoverTip);
-    td.addEventListener('mouseleave', hideCoverTip);
-  });
-}
-
-function showCoverTip(e) {
-  const bid = parseInt(this.dataset.bid);
-  const b = bookDetailMap[bid];
-  if (!b) return;
-  if (tipTimeout) { clearTimeout(tipTimeout); tipTimeout = null; }
-
-  const rows = [];
-  if (b.pages) rows.push(`<div class="tip-row"><span class="tip-label">页数</span><span class="tip-val">${esc(b.pages)}页</span></div>`);
-  if (b.price > 0) rows.push(`<div class="tip-row"><span class="tip-label">定价</span><span class="tip-val">¥${b.price.toFixed(2)}</span></div>`);
-  if (b.binding) rows.push(`<div class="tip-row"><span class="tip-label">装帧</span><span class="tip-val">${esc(b.binding)}</span></div>`);
-  if (b.edition) rows.push(`<div class="tip-row"><span class="tip-label">版次</span><span class="tip-val">${esc(b.edition)}</span></div>`);
-  if (b.impression) rows.push(`<div class="tip-row"><span class="tip-label">印次</span><span class="tip-val">${esc(b.impression)}</span></div>`);
-  if (b.language) rows.push(`<div class="tip-row"><span class="tip-label">语言</span><span class="tip-val">${esc(b.language)}</span></div>`);
-  if (b.format) rows.push(`<div class="tip-row"><span class="tip-label">开本</span><span class="tip-val">${esc(b.format)}</span></div>`);
-  if (b.cip) rows.push(`<div class="tip-row"><span class="tip-label">CIP</span><span class="tip-val">${esc(b.cip)}</span></div>`);
-  if (b.clc_number) rows.push(`<div class="tip-row"><span class="tip-label">中图分类</span><span class="tip-val">${esc(b.clc_number)}</span></div>`);
-  if (b.keywords) rows.push(`<div class="tip-row"><span class="tip-label">关键词</span><span class="tip-val" style="color:#cbd5e1">${esc(b.keywords)}</span></div>`);
-
-  let descHtml = '';
-  if (b.description) {
-    const desc = b.description.length > 200 ? b.description.substring(0,200)+'…' : b.description;
-    descHtml = `<div class="tip-desc">${esc(desc)}</div>`;
-  }
-
-  if (rows.length === 0 && !descHtml) return;
-
-  tip.innerHTML = rows.join('') + descHtml;
-
-  // 定位到封面右侧
-  const rect = this.getBoundingClientRect();
-  let left = rect.right + 10;
-  let top = rect.top;
-  // 防止右侧溢出
-  if (left + 320 > window.innerWidth) left = rect.left - 330;
-  if (left < 0) left = 10;
-  // 防止底部溢出
-  if (top + tip.offsetHeight > window.innerHeight) top = window.innerHeight - tip.offsetHeight - 10;
-
-  tip.style.left = left + 'px';
-  tip.style.top = top + 'px';
-  tip.classList.add('show');
-}
-
-function hideCoverTip() {
-  tipTimeout = setTimeout(() => tip.classList.remove('show'), 120);
 }
 
 document.getElementById('bookSearch').addEventListener('input', debounce(() => { bookPage=1; loadBooks(); }, 400));
