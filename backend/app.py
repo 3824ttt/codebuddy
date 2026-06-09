@@ -15,6 +15,10 @@ app = Flask(__name__, static_folder='../frontend', static_url_path='')
 DATABASE = os.path.join(os.path.dirname(__file__), 'library.db')
 ADMIN_PASSWORD = 'admin123'
 
+# ========== 阿里云 ISBN API 配置 ==========
+# AppCode 获取：https://market.aliyun.com/products/57126001/cmapi00037193.html
+ALICLOUD_APPCODE = '请替换为你的AppCode'
+
 # ========== Excel 支持 ==========
 try:
     import openpyxl
@@ -637,126 +641,41 @@ def _clean_isbn(raw):
     return s if s else None
 
 
-# ---------- ISBN API 源配置 ----------
-# 按优先级降序，前一个失败则尝试下一个
-ISBN_API_SOURCES = [
-    {
-        'name': 'OpenLibrary',
-        'base': 'https://openlibrary.org',
-        'cover_tpl': 'https://covers.openlibrary.org/b/id/{cover_id}-L.jpg',
-    },
-    {
-        'name': 'GoogleBooks',
-        'base': 'https://www.googleapis.com/books/v1',
-        'cover_tpl': None,  # 用 volumeInfo.imageLinks
-    },
-]
-
-
-def _fetch_openlibrary(isbn_clean):
-    """从 Open Library API 获取图书信息"""
-    url = f'https://openlibrary.org/api/books?bibkeys=ISBN:{isbn_clean}&format=json&jscmd=data'
-    req = urllib.request.Request(url, headers={'User-Agent': 'ReaderRecommend/1.0'})
-    resp = urllib.request.urlopen(req, timeout=10)
-    data = json.loads(resp.read().decode('utf-8'))
-    key = f'ISBN:{isbn_clean}'
-    if key not in data:
-        return None
-    book = data[key]
-
-    def _get(key, default=''):
-        v = book.get(key, '')
-        if isinstance(v, list):
-            return ', '.join(str(x.get('name', x)) if isinstance(x, dict) else str(x) for x in v)
-        return str(v) if v else default
-
-    authors = _get('authors')
-    publishers = _get('publishers')
-    pub_date = _get('publish_date')
-    pub_year = pub_date[:4] if pub_date else ''
-    pages = str(book.get('number_of_pages', ''))
-
-    # 描述/摘要
-    desc = ''
-    if 'notes' in book:
-        desc = book['notes']
-    elif 'description' in book:
-        desc = str(book['description']) if isinstance(book['description'], str) else str(book['description'].get('value', ''))
-
-    # 封面
-    cover_url = ''
-    covers = book.get('cover', {})
-    if 'large' in covers:
-        cover_url = covers['large']
-    elif 'medium' in covers:
-        cover_url = covers['medium']
-    elif 'small' in covers:
-        cover_url = covers['small']
-
-    return {
-        '_source': 'OpenLibrary',
-        'isbn': isbn_clean,
-        'title': _get('title'),
-        'subtitle': _get('subtitle', ''),
-        'author': authors,
-        'publisher': publishers,
-        'pub_year': pub_year,
-        'pages': pages,
-        'description': desc[:2000] if desc else '',
-        'cover_url': cover_url,
+def _fetch_alicloud_isbn(isbn_clean):
+    """从阿里云 ISBN API 获取图书信息（商业接口，国内可用）"""
+    url = f'https://tsisbn.market.alicloudapi.com/isbn/index?isbn={isbn_clean}'
+    headers = {
+        'Authorization': 'APPCODE ' + ALICLOUD_APPCODE,
+        'User-Agent': 'ReaderRecommend/1.0',
     }
-
-
-def _fetch_googlebooks(isbn_clean):
-    """从 Google Books API 获取图书信息（备用）"""
-    url = f'https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn_clean}'
-    req = urllib.request.Request(url, headers={'User-Agent': 'ReaderRecommend/1.0'})
+    req = urllib.request.Request(url, headers=headers)
     resp = urllib.request.urlopen(req, timeout=10)
-    data = json.loads(resp.read().decode('utf-8'))
-    items = data.get('items', [])
-    if not items:
+    result = json.loads(resp.read().decode('utf-8'))
+
+    # API返回格式：{"code": 1, "msg": "操作成功", "data": {...}}
+    if result.get('code') != 1 or not result.get('data'):
         return None
-    vol = items[0].get('volumeInfo', {})
 
-    def _get_val(*keys):
-        for k in keys:
-            v = vol.get(k, '')
-            if isinstance(v, list) and len(v) > 0:
-                return ', '.join(str(x) for x in v)
-            if v:
-                return str(v)
-        return ''
-
-    title = _get_val('title')
-    subtitle = _get_val('subtitle')
-    authors = _get_val('authors')
-    publisher = _get_val('publisher')
-    pub_date = _get_val('publishedDate')
+    d = result['data']
+    pub_date = (d.get('pubdate') or '').strip()
     pub_year = pub_date[:4] if pub_date else ''
-    pages = str(vol.get('pageCount', ''))
-    description = _get_val('description')
-    cover_url = ''
-    image_links = vol.get('imageLinks', {})
-    if image_links:
-        cover_url = image_links.get('thumbnail', '') or image_links.get('smallThumbnail', '')
-        cover_url = cover_url.replace('zoom=1', 'zoom=0').replace('http://', 'https://')
 
     return {
-        '_source': 'GoogleBooks',
+        '_source': '阿里云ISBN',
         'isbn': isbn_clean,
-        'title': title,
-        'subtitle': subtitle,
-        'author': authors,
-        'publisher': publisher,
+        'title': (d.get('title') or '').strip(),
+        'subtitle': '',
+        'author': (d.get('author') or '').strip(),
+        'publisher': (d.get('publisher') or '').strip(),
         'pub_year': pub_year,
-        'pages': pages,
-        'description': description[:2000] if description else '',
-        'cover_url': cover_url,
+        'pages': str(d.get('pages', '')).strip(),
+        'description': (d.get('summary') or '').strip()[:2000],
+        'cover_url': (d.get('img') or '').strip(),
     }
 
 
 def lookup_isbn(isbn):
-    """查询单个 ISBN：先查缓存 → 依次尝试 OpenLibrary / GoogleBooks API"""
+    """查询单个 ISBN：先查缓存 → 调阿里云 ISBN API"""
     isbn_clean = _clean_isbn(isbn)
     if not isbn_clean:
         return None, '无效的ISBN号', None
@@ -771,27 +690,19 @@ def lookup_isbn(isbn):
         db.close()
         return result, None, 'cache'
 
-    # 2) 依次尝试多个 API 源
+    # 2) 调阿里云 ISBN API
     cache_data = None
     last_error = ''
-    for source in ISBN_API_SOURCES:
-        try:
-            if source['name'] == 'OpenLibrary':
-                cache_data = _fetch_openlibrary(isbn_clean)
-            elif source['name'] == 'GoogleBooks':
-                cache_data = _fetch_googlebooks(isbn_clean)
-            if cache_data:
-                break
-        except urllib.error.URLError as e:
-            last_error = f'{source["name"]}: {e.reason}'
-            continue
-        except Exception as e:
-            last_error = f'{source["name"]}: {str(e)}'
-            continue
+    try:
+        cache_data = _fetch_alicloud_isbn(isbn_clean)
+    except urllib.error.URLError as e:
+        last_error = f'网络错误: {e.reason}'
+    except Exception as e:
+        last_error = str(e)
 
     if not cache_data:
         db.close()
-        return None, f'所有API源均不可用（{last_error}）', None
+        return None, f'API查询失败：{last_error}', None
 
     # 3) 存缓存
     source_name = cache_data.get('_source', 'api')
