@@ -97,52 +97,7 @@ body {
 .td-cover img { width: 68px; height: 96px; object-fit: contain; border-radius: 4px; display: block; background: #f1f5f9; }
 .td-cover .no-cover { width: 68px; height: 96px; background: #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-secondary); }
 
-/* Book detail tooltip — fixed panel beside row */
-#bookDetailTip {
-  position: fixed;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(-6px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-  background: #1e293b;
-  color: #f1f5f9;
-  border-radius: 12px;
-  padding: 16px 18px;
-  font-size: 13px;
-  line-height: 1.75;
-  min-width: 280px;
-  max-width: 420px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
-}
-#bookDetailTip.show { opacity: 1; transform: translateX(0); }
-#bookDetailTip .dt-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-}
-#bookDetailTip .dt-label {
-  color: #94a3b8;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-#bookDetailTip .dt-val {
-  text-align: right;
-  color: #e2e8f0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-#bookDetailTip .dt-desc {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #334155;
-  font-size: 12px;
-  color: #cbd5e1;
-  line-height: 1.75;
-  max-height: 200px;
-  overflow-y: auto;
-}
+
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-pending { background: #e2e8f0; color: #64748b; }
@@ -619,53 +574,70 @@ const bookTip = document.getElementById('bookDetailTip');
 let tipTimeout = null;
 
 function showBookTip(rowEl) {
+  if (!bookTip) return;
   const bid = parseInt(rowEl.dataset.bid);
   const b = bookDetailMap[bid];
   if (!b) return;
   if (tipTimeout) { clearTimeout(tipTimeout); tipTimeout = null; }
 
   const rows = [];
-  if (b.pages) rows.push(`<div class="dt-row"><span class="dt-label">页数</span><span class="dt-val">${esc(b.pages)}页</span></div>`);
-  if (b.price > 0) rows.push(`<div class="dt-row"><span class="dt-label">定价</span><span class="dt-val">¥${b.price.toFixed(2)}</span></div>`);
-  if (b.binding) rows.push(`<div class="dt-row"><span class="dt-label">装帧</span><span class="dt-val">${esc(b.binding)}</span></div>`);
-  if (b.edition) rows.push(`<div class="dt-row"><span class="dt-label">版次</span><span class="dt-val">${esc(b.edition)}</span></div>`);
-  if (b.impression) rows.push(`<div class="dt-row"><span class="dt-label">印次</span><span class="dt-val">${esc(b.impression)}</span></div>`);
-  if (b.language) rows.push(`<div class="dt-row"><span class="dt-label">语言</span><span class="dt-val">${esc(b.language)}</span></div>`);
-  if (b.format) rows.push(`<div class="dt-row"><span class="dt-label">开本</span><span class="dt-val">${esc(b.format)}</span></div>`);
-  if (b.cip) rows.push(`<div class="dt-row"><span class="dt-label">CIP</span><span class="dt-val">${esc(b.cip)}</span></div>`);
-  if (b.clc_number) rows.push(`<div class="dt-row"><span class="dt-label">中图分类</span><span class="dt-val">${esc(b.clc_number)}</span></div>`);
-  if (b.keywords) rows.push(`<div class="dt-row"><span class="dt-label">关键词</span><span class="dt-val" style="color:#cbd5e1">${esc(b.keywords)}</span></div>`);
+  if (b.pages) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">页数</span><span style="text-align:right;color:#e2e8f0">${esc(b.pages)}页</span></div>`);
+  if (b.price > 0) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">定价</span><span style="text-align:right;color:#e2e8f0">¥${b.price.toFixed(2)}</span></div>`);
+  if (b.binding) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">装帧</span><span style="text-align:right;color:#e2e8f0">${esc(b.binding)}</span></div>`);
+  if (b.edition) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">版次</span><span style="text-align:right;color:#e2e8f0">${esc(b.edition)}</span></div>`);
+  if (b.impression) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">印次</span><span style="text-align:right;color:#e2e8f0">${esc(b.impression)}</span></div>`);
+  if (b.language) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">语言</span><span style="text-align:right;color:#e2e8f0">${esc(b.language)}</span></div>`);
+  if (b.format) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">开本</span><span style="text-align:right;color:#e2e8f0">${esc(b.format)}</span></div>`);
+  if (b.cip) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">CIP</span><span style="text-align:right;color:#e2e8f0">${esc(b.cip)}</span></div>`);
+  if (b.clc_number) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">中图分类</span><span style="text-align:right;color:#e2e8f0">${esc(b.clc_number)}</span></div>`);
+  if (b.keywords) rows.push(`<div style="display:flex;justify-content:space-between;gap:14px;margin-bottom:2px"><span style="color:#94a3b8;flex-shrink:0">关键词</span><span style="text-align:right;color:#cbd5e1">${esc(b.keywords)}</span></div>`);
 
   let descHtml = '';
   if (b.description) {
-    descHtml = `<div class="dt-desc">${esc(b.description)}</div>`;
+    descHtml = `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #334155;font-size:12px;color:#cbd5e1;line-height:1.75;max-height:200px;overflow-y:auto">${esc(b.description)}</div>`;
   }
 
   if (rows.length === 0 && !descHtml) return;
 
-  // 先定位再填内容，确保 offsetHeight 在正确的定位上下文中计算
   const rect = rowEl.getBoundingClientRect();
   let left = rect.right + 14;
   let top = rect.top;
   if (left + 420 > window.innerWidth - 10) left = rect.left - 434;
   if (left < 10) left = 10;
-  bookTip.style.left = left + 'px';
-  bookTip.style.top = top + 'px';
 
+  // 全部用 inline style，不依赖任何 CSS class
+  bookTip.style.cssText = `
+    position: fixed;
+    z-index: 99999;
+    left: ${left}px;
+    top: ${top}px;
+    min-width: 280px;
+    max-width: 420px;
+    background: #1e293b;
+    color: #f1f5f9;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 13px;
+    line-height: 1.75;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+    opacity: 1;
+    display: block;
+    pointer-events: none;
+  `;
   bookTip.innerHTML = rows.join('') + descHtml;
 
-  // 强制布局计算后读取高度，防溢出
+  // 防底部溢出
   const tipH = bookTip.offsetHeight;
   if (top + tipH > window.innerHeight - 10) {
-    top = Math.max(10, window.innerHeight - tipH - 10);
-    bookTip.style.top = top + 'px';
+    bookTip.style.top = Math.max(10, window.innerHeight - tipH - 10) + 'px';
   }
-
-  bookTip.classList.add('show');
 }
 
 function hideBookTip() {
-  tipTimeout = setTimeout(() => bookTip.classList.remove('show'), 150);
+  tipTimeout = setTimeout(() => {
+    bookTip.style.opacity = '0';
+    bookTip.style.pointerEvents = 'none';
+  }, 150);
 }
 
 function initRowTooltips() {
