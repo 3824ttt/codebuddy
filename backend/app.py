@@ -414,10 +414,7 @@ def my_recommendations():
 
     results = []
     for r in rows:
-        d = dict(r)
-        d['release_date'] = smart_str(d.get('release_date'))
-        d['pub_year'] = smart_str(d.get('pub_year'))
-        results.append(d)
+        results.append(dict(r))
 
     return jsonify(results)
 
