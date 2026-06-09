@@ -986,10 +986,13 @@ def admin_static(filename):
 
 
 # ==================== 启动 ====================
+# 自动初始化数据库（gunicorn 导入 app 时也会执行）
+init_db()
+
+
 if __name__ == '__main__':
     import sys as _sys
     _sys.stdout = io.TextIOWrapper(_sys.stdout.buffer, encoding='utf-8')
-    init_db()
     print("=" * 50)
     print("[Reader Recommend] 读者荐读系统 已启动")
     print("   读者端: http://localhost:5000")
