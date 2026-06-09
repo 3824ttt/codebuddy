@@ -432,6 +432,7 @@ body {
   </div>
 </div>
 
+<div id="coverDetailTip"></div>
 <script>
 let TOKEN = localStorage.getItem('admin_token') || '';
 let bookPage = 1, selectedRecIds = [], excelFile = null;
@@ -1142,7 +1143,5 @@ if (TOKEN) {
   }).catch(() => { TOKEN=''; localStorage.removeItem('admin_token'); });
 }
 </script>
-
-<div id="coverDetailTip"></div>
 </body>
 </html>
