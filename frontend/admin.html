@@ -8,12 +8,47 @@
 <meta http-equiv="Expires" content="0">
 <title>管理后台 · 读者荐读系统</title>
 <style>
-:root {
-  --primary: #4f46e5; --primary-light: #e0e7ff; --success: #10b981;
-  --warning: #f59e0b; --danger: #ef4444; --bg: #f1f5f9;
+/* ===== Theme: 靛蓝紫 (Indigo) — 默认 ===== */
+:root, [data-theme="indigo"] {
+  --primary: #4f46e5; --primary-hover: #4338ca; --primary-light: #e0e7ff; --success: #10b981;
+  --success-hover: #059669; --warning: #f59e0b; --danger: #ef4444; --danger-hover: #dc2626; --bg: #f1f5f9;
   --card-bg: #ffffff; --text: #1e293b; --text-secondary: #64748b;
   --border: #e2e8f0; --shadow: 0 1px 3px rgba(0,0,0,0.08); --radius: 10px;
+  --header-from: #4f46e5; --header-to: #7c3aed;
+  --sidebar-active-bg: #eef2ff; --sidebar-active-text: #4f46e5;
 }
+/* ===== Theme: 薄荷青绿 (Mint) ===== */
+[data-theme="mint"] {
+  --primary: #0d9488; --primary-hover: #0f766e; --primary-light: #ccfbf1; --success: #10b981;
+  --success-hover: #059669; --warning: #d97706; --danger: #dc2626; --danger-hover: #b91c1c; --bg: #f0fdfa;
+  --card-bg: #ffffff; --text: #134e4a; --text-secondary: #5f8b87;
+  --border: #99f6e4; --shadow: 0 1px 3px rgba(13,148,136,0.06); --radius: 10px;
+  --header-from: #0d9488; --header-to: #14b8a6;
+  --sidebar-active-bg: #ccfbf1; --sidebar-active-text: #0d9488;
+}
+/* ===== Theme: 天空蓝 (Sky) ===== */
+[data-theme="sky"] {
+  --primary: #0284c7; --primary-hover: #0369a1; --primary-light: #e0f2fe; --success: #0ea5e9;
+  --success-hover: #0284c7; --warning: #f59e0b; --danger: #ef4444; --danger-hover: #dc2626; --bg: #f0f9ff;
+  --card-bg: #ffffff; --text: #0c4a6e; --text-secondary: #64748b;
+  --border: #bae6fd; --shadow: 0 1px 3px rgba(2,132,199,0.06); --radius: 10px;
+  --header-from: #0284c7; --header-to: #38bdf8;
+  --sidebar-active-bg: #e0f2fe; --sidebar-active-text: #0284c7;
+}
+.theme-switcher {
+  display: flex; gap: 6px; padding: 12px 20px; border-top: 1px solid var(--border);
+  margin-top: auto; align-items: center;
+}
+.theme-switcher span { font-size: 12px; color: var(--text-secondary); margin-right: 4px; }
+.theme-dot {
+  width: 20px; height: 20px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: 0.2s;
+}
+.theme-dot:hover { transform: scale(1.15); }
+.theme-dot.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--border); }
+.theme-dot.indigo { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+.theme-dot.mint { background: linear-gradient(135deg, #0d9488, #14b8a6); }
+.theme-dot.sky { background: linear-gradient(135deg, #0284c7, #38bdf8); }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -27,13 +62,13 @@ body {
 .login-box input { width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; margin-bottom: 16px; }
 .login-box input:focus { border-color: var(--primary); }
 .login-box button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
-.login-box button:hover { background: #4338ca; }
+.login-box button:hover { background: var(--primary-hover); }
 .login-error { color: var(--danger); font-size: 13px; margin-top: 8px; }
 
 /* ======= Layout ======= */
 .app { display: none; }
 .app.show { display: flex; }
-.sidebar { width: 220px; background: var(--card-bg); border-right: 1px solid var(--border); min-height: 100vh; padding: 20px 0; position: sticky; top: 0; }
+.sidebar { width: 220px; background: var(--card-bg); border-right: 1px solid var(--border); min-height: 100vh; padding: 20px 0; position: sticky; top: 0; display: flex; flex-direction: column; }
 .sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .sidebar-nav { padding: 8px 0; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: all 0.15s; border-left: 3px solid transparent; }
@@ -65,11 +100,11 @@ body {
 .toolbar input { flex: 1; min-width: 200px; }
 .btn { cursor: pointer; font-weight: 500; transition: all 0.2s; padding: 9px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; outline: none; }
 .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
-.btn-primary:hover { background: #4338ca; }
+.btn-primary:hover { background: var(--primary-hover); }
 .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
-.btn-success:hover { background: #059669; }
+.btn-success:hover { background: var(--success-hover); }
 .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
-.btn-danger:hover { background: #dc2626; }
+.btn-danger:hover { background: var(--danger-hover); }
 .btn-outline { background: #fff; color: var(--primary); border-color: var(--primary); }
 .btn-outline:hover { background: var(--primary-light); }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
@@ -173,6 +208,12 @@ body {
       <div class="nav-item" data-page="orders">采购订单</div>
       <div class="nav-item" data-page="config">系统配置</div>
     </nav>
+    <div class="theme-switcher">
+      <span>主题</span>
+      <span class="theme-dot indigo active" data-theme="indigo" title="靛蓝紫"></span>
+      <span class="theme-dot mint" data-theme="mint" title="薄荷青绿"></span>
+      <span class="theme-dot sky" data-theme="sky" title="天空蓝"></span>
+    </div>
   </aside>
 
   <section class="main-content">
@@ -650,7 +691,7 @@ function initRowTooltips() {
 async function loadBooks() {
   const search = document.getElementById('bookSearch').value;
   const status = document.getElementById('bookStatusFilter').value;
-  const params = new URLSearchParams({ search, status, page: bookPage, per_page: 15, sort: bookSort, order: bookSortOrder });
+  const params = new URLSearchParams({ search, status, page: bookPage, per_page: 30, sort: bookSort, order: bookSortOrder });
   const data = await api('/api/admin/books?' + params);
   const statusMap = {
     pending: '<span class="badge badge-pending">待推荐</span>',
@@ -708,7 +749,7 @@ async function loadBooks() {
   initRowTooltips();
 
   const total = data.total || 0;
-  const tp = Math.ceil(total / 15) || 1;
+  const tp = Math.ceil(total / 30) || 1;
   const pagEl = document.getElementById('bookPagination');
   pagEl.innerHTML = `<span>第 ${bookPage}/${tp} 页（共${total}本）</span>
      <button class="btn btn-outline btn-sm pag-prev" ${bookPage<=1?'disabled':''}>上一页</button>
@@ -1109,6 +1150,26 @@ if (TOKEN) {
     loadDashboard();
   }).catch(() => { TOKEN=''; localStorage.removeItem('admin_token'); });
 }
+
+
+// ======= 主题切换 =======
+function initTheme() {
+  const saved = localStorage.getItem('theme') || 'indigo';
+  applyTheme(saved);
+  document.querySelectorAll('.theme-dot').forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.theme === saved);
+    dot.addEventListener('click', () => {
+      const t = dot.dataset.theme;
+      localStorage.setItem('theme', t);
+      applyTheme(t);
+      document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.theme === t));
+    });
+  });
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+initTheme();
 </script>
 </body>
 </html>

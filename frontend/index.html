@@ -8,10 +8,13 @@
 <meta http-equiv="Expires" content="0">
 <title>读者荐读系统 - 为好书发声</title>
 <style>
-  :root {
+  /* ===== Theme: 靛蓝紫 (Indigo) — 默认 ===== */
+  :root, [data-theme="indigo"] {
     --primary: #4f46e5;
+    --primary-hover: #4338ca;
     --primary-light: #e0e7ff;
     --success: #10b981;
+    --success-hover: #059669;
     --warning: #f59e0b;
     --danger: #ef4444;
     --bg: #f8fafc;
@@ -22,7 +25,65 @@
     --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
     --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
     --radius: 12px;
+    --header-from: #4f46e5; --header-to: #7c3aed;
+    --cover-from: #667eea; --cover-to: #764ba2;
   }
+  /* ===== Theme: 薄荷青绿 (Mint) ===== */
+  [data-theme="mint"] {
+    --primary: #0d9488;
+    --primary-hover: #0f766e;
+    --primary-light: #ccfbf1;
+    --success: #10b981;
+    --success-hover: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --bg: #f0fdfa;
+    --card-bg: #ffffff;
+    --text: #134e4a;
+    --text-secondary: #5f8b87;
+    --border: #99f6e4;
+    --shadow: 0 1px 3px rgba(13,148,136,0.06), 0 1px 2px rgba(13,148,136,0.04);
+    --shadow-md: 0 4px 6px rgba(13,148,136,0.05), 0 2px 4px rgba(13,148,136,0.04);
+    --radius: 12px;
+    --header-from: #0d9488; --header-to: #14b8a6;
+    --cover-from: #0f766e; --cover-to: #14b8a6;
+  }
+  /* ===== Theme: 天空蓝 (Sky) ===== */
+  [data-theme="sky"] {
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --primary-light: #e0f2fe;
+    --success: #0ea5e9;
+    --success-hover: #0284c7;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f0f9ff;
+    --card-bg: #ffffff;
+    --text: #0c4a6e;
+    --text-secondary: #64748b;
+    --border: #bae6fd;
+    --shadow: 0 1px 3px rgba(2,132,199,0.06), 0 1px 2px rgba(2,132,199,0.04);
+    --shadow-md: 0 4px 6px rgba(2,132,199,0.05), 0 2px 4px rgba(2,132,199,0.04);
+    --radius: 12px;
+    --header-from: #0284c7; --header-to: #38bdf8;
+    --cover-from: #0369a1; --cover-to: #38bdf8;
+  }
+
+  /* Theme Switcher */
+  .theme-switcher {
+    display: inline-flex; gap: 6px; align-items: center;
+    padding: 3px 8px; background: rgba(255,255,255,0.15);
+    border-radius: 20px; margin-left: 12px;
+  }
+  .theme-dot {
+    width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: 0.2s; position: relative;
+  }
+  .theme-dot:hover { transform: scale(1.2); }
+  .theme-dot.active { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
+  .theme-dot.indigo { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+  .theme-dot.mint { background: linear-gradient(135deg, #0d9488, #14b8a6); }
+  .theme-dot.sky { background: linear-gradient(135deg, #0284c7, #38bdf8); }
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -33,7 +94,7 @@
 
   /* Header */
   .header {
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    background: linear-gradient(135deg, var(--header-from) 0%, var(--header-to) 100%);
     color: #fff;
     padding: 0;
     position: sticky;
@@ -189,7 +250,7 @@
   }
   .book-cover {
     height: 320px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--cover-from) 0%, var(--cover-to) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -222,7 +283,7 @@
     text-align: center;
     padding: 24px;
     line-height: 1.5;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--cover-from) 0%, var(--cover-to) 100%);
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
   }
@@ -391,7 +452,7 @@
     background: var(--primary);
     color: #fff;
   }
-  .btn-recommend:hover { background: #4338ca; }
+  .btn-recommend:hover { background: var(--primary-hover); }
   .btn-recommend:disabled {
     background: #cbd5e1;
     color: #94a3b8;
@@ -402,7 +463,7 @@
     cursor: default;
   }
   .btn-recommend.reached {
-    background: #059669;
+    background: var(--success-hover);
   }
 
   /* heat count */
@@ -543,6 +604,11 @@
     <span style="color:var(--border);margin:0 4px;">|</span>
     <button class="view-toggle active" data-view="grid" title="网格视图">▦</button>
     <button class="view-toggle" data-view="list" title="列表视图">☰</button>
+    <div class="theme-switcher">
+      <span class="theme-dot indigo active" data-theme="indigo" title="靛蓝紫"></span>
+      <span class="theme-dot mint" data-theme="mint" title="薄荷青绿"></span>
+      <span class="theme-dot sky" data-theme="sky" title="天空蓝"></span>
+    </div>
   </div>
 
   <!-- Info Banner -->
@@ -578,7 +644,7 @@ const state = {
   majors: [],
   total: 0,
   page: 1,
-  perPage: 20,
+  perPage: 30,
   search: '',
   category: '',
   publisher: '',
@@ -877,6 +943,26 @@ function cleanVotedBooks() {
 // ==================== 初始化 ====================
 cleanVotedBooks();
 loadBooks();
+
+
+// ======= 主题切换 =======
+function initTheme() {
+  const saved = localStorage.getItem('theme') || 'indigo';
+  applyTheme(saved);
+  document.querySelectorAll('.theme-dot').forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.theme === saved);
+    dot.addEventListener('click', () => {
+      const t = dot.dataset.theme;
+      localStorage.setItem('theme', t);
+      applyTheme(t);
+      document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.theme === t));
+    });
+  });
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+initTheme();
 </script>
 </body>
 </html>
