@@ -562,6 +562,85 @@
     color: var(--text-secondary);
     font-size: 13px;
   }
+
+  /* ===== My Recommendations Panel ===== */
+  .my-recs-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+    z-index: 9998; display: flex; justify-content: flex-end;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .my-recs-overlay.show { opacity: 1; pointer-events: auto; }
+  .my-recs-panel {
+    width: 420px; max-width: 92vw; height: 100vh;
+    background: var(--card-bg); box-shadow: -8px 0 30px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column; transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  .my-recs-overlay.show .my-recs-panel { transform: translateX(0); }
+  .my-recs-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--header-from), var(--header-to));
+    color: #fff;
+  }
+  .my-recs-header h2 { font-size: 18px; font-weight: 600; }
+  .my-recs-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: rgba(255,255,255,0.2); color: #fff; font-size: 20px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .my-recs-close:hover { background: rgba(255,255,255,0.35); }
+  .my-recs-body {
+    flex: 1; overflow-y: auto; padding: 16px;
+  }
+  .my-recs-empty {
+    text-align: center; color: var(--text-secondary);
+    padding: 60px 20px; font-size: 14px;
+  }
+  .my-rec-item {
+    display: flex; gap: 14px; padding: 14px; border-radius: 10px;
+    background: var(--bg); margin-bottom: 10px; align-items: center;
+    transition: transform 0.15s;
+  }
+  .my-rec-item:hover { transform: translateX(-4px); }
+  .my-rec-cover {
+    width: 48px; height: 68px; border-radius: 4px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--cover-from), var(--cover-to));
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  .my-rec-cover img {
+    width: 100%; height: 100%; object-fit: contain; background: #f8fafc;
+  }
+  .my-rec-info { flex: 1; min-width: 0; }
+  .my-rec-title {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .my-rec-meta {
+    font-size: 12px; color: var(--text-secondary); margin-top: 3px;
+  }
+  .my-rec-time {
+    font-size: 11px; color: var(--text-secondary); margin-top: 2px; opacity: 0.7;
+  }
+  .my-rec-cancel {
+    flex-shrink: 0; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--danger);
+    background: #fff; color: var(--danger); font-size: 12px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .my-rec-cancel:hover { background: var(--danger); color: #fff; }
+
+  .btn-my-recs {
+    display: flex; align-items: center; gap: 6px; padding: 6px 14px;
+    border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.12); color: #fff; font-size: 14px;
+    cursor: pointer; transition: background 0.2s; margin-left: 8px;
+  }
+  .btn-my-recs:hover { background: rgba(255,255,255,0.22); }
+  .btn-my-recs .count {
+    background: rgba(255,255,255,0.25); border-radius: 10px;
+    padding: 1px 8px; font-size: 12px; font-weight: 600;
+  }
 </style>
 </head>
 <body>
@@ -578,6 +657,9 @@
     <div class="header-stats" id="headerStats">
       <span>📚 图书 <strong id="statBooks">-</strong></span>
       <span>👍 总推荐 <strong id="statClicks">-</strong></span>
+      <button class="btn-my-recs" id="btnMyRecs" onclick="openMyRecs()">
+        📋 我的推荐 <span class="count" id="myRecsCount">0</span>
+      </button>
     </div>
   </div>
 </div>
@@ -627,6 +709,19 @@
 </div>
 
 <footer>© 2026 读者荐读系统 · 让每一本好书都被看见</footer>
+
+<!-- My Recommendations Panel -->
+<div class="my-recs-overlay" id="myRecsOverlay" onclick="if(event.target===this)closeMyRecs()">
+  <div class="my-recs-panel">
+    <div class="my-recs-header">
+      <h2>📋 我的推荐</h2>
+      <button class="my-recs-close" onclick="closeMyRecs()">✕</button>
+    </div>
+    <div class="my-recs-body" id="myRecsBody">
+      <div class="my-recs-empty">加载中...</div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ==================== 工具函数 ====================
@@ -854,6 +949,84 @@ async function recommendBook(bookId) {
       showToast(e.message || '操作失败', 'error');
     }
   }
+  updateMyRecsCount();
+}
+
+// ==================== 我的推荐 ====================
+async function openMyRecs() {
+  document.getElementById('myRecsOverlay').classList.add('show');
+  document.getElementById('myRecsBody').innerHTML = '<div class="my-recs-empty">加载中...</div>';
+  await loadMyRecs();
+}
+
+function closeMyRecs() {
+  document.getElementById('myRecsOverlay').classList.remove('show');
+}
+
+async function loadMyRecs() {
+  try {
+    const books = await api('/api/my-recommendations');
+    renderMyRecs(books);
+  } catch (e) {
+    document.getElementById('myRecsBody').innerHTML =
+      '<div class="my-recs-empty">加载失败：' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function renderMyRecs(books) {
+  const body = document.getElementById('myRecsBody');
+  if (!books || books.length === 0) {
+    body.innerHTML = '<div class="my-recs-empty">📭 你还没有推荐过任何图书<br><span style="font-size:12px;opacity:0.7;">快去为心仪的好书投票吧！</span></div>';
+    document.getElementById('myRecsCount').textContent = '0';
+    return;
+  }
+
+  document.getElementById('myRecsCount').textContent = books.length;
+
+  body.innerHTML = books.map(b => {
+    const coverHtml = b.cover_url
+      ? `<img src="${escapeHtml(b.cover_url)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+         <div class="cover-text" style="font-size:9px;display:none">${escapeHtml(b.title)}</div>`
+      : `<div class="cover-text" style="font-size:9px">${escapeHtml(b.title)}</div>`;
+
+    const time = b.clicked_at ? new Date(b.clicked_at).toLocaleString('zh-CN') : '';
+
+    return `<div class="my-rec-item" id="myRecItem-${b.id}">
+      <div class="my-rec-cover">${coverHtml}</div>
+      <div class="my-rec-info">
+        <div class="my-rec-title">${escapeHtml(b.title)}</div>
+        <div class="my-rec-meta">${escapeHtml(b.author)} · ${escapeHtml(b.publisher || '')}</div>
+        ${time ? `<div class="my-rec-time">推荐于 ${time}</div>` : ''}
+      </div>
+      <button class="my-rec-cancel" onclick="cancelRecommend(${b.id})">取消推荐</button>
+    </div>`;
+  }).join('');
+}
+
+async function cancelRecommend(bookId) {
+  if (!confirm('确定要取消对这本书的推荐吗？')) return;
+
+  try {
+    await api('/api/books/' + bookId + '/click', { method: 'DELETE' });
+    // 清除本地记录
+    delete state.votedBooks[bookId];
+    localStorage.setItem('voted_books', JSON.stringify(state.votedBooks));
+    // 移除面板中的条目
+    const item = document.getElementById('myRecItem-' + bookId);
+    if (item) item.style.opacity = '0';
+    setTimeout(() => item?.remove(), 300);
+    showToast('已取消推荐', 'info');
+    // 刷新主列表
+    loadBooks();
+    // 重新加载我的推荐计数
+    setTimeout(loadMyRecs, 500);
+  } catch (e) {
+    showToast(e.message || '取消失败', 'error');
+  }
+}
+
+function updateMyRecsCount() {
+  document.getElementById('myRecsCount').textContent = Object.keys(state.votedBooks).length;
 }
 
 function goPage(page) {
@@ -942,6 +1115,7 @@ function cleanVotedBooks() {
 
 // ==================== 初始化 ====================
 cleanVotedBooks();
+updateMyRecsCount();
 loadBooks();
 
 

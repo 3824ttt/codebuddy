@@ -369,6 +369,59 @@ def click_book(book_id):
     return jsonify({'success': True, 'click_count': new_count, 'reach_threshold': new_count >= threshold})
 
 
+@app.route('/api/books/<int:book_id>/click', methods=['DELETE'])
+def unclick_book(book_id):
+    """取消推荐某本书"""
+    db = get_db()
+    row = db.execute('SELECT id, title, click_count FROM books WHERE id = ?', (book_id,)).fetchone()
+    if not row:
+        return jsonify({'error': '图书不存在'}), 404
+
+    reader_id = get_client_id()
+    # 删除该读者的推荐记录
+    deleted = db.execute(
+        'DELETE FROM click_records WHERE book_id=? AND reader_id=?',
+        (book_id, reader_id)
+    )
+    if deleted.rowcount == 0:
+        return jsonify({'error': '未找到推荐记录，可能已取消或超时'}), 404
+
+    # 减少 click_count
+    new_count = max(row['click_count'] - 1, 0)
+    db.execute('UPDATE books SET click_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (new_count, book_id))
+
+    # 如果低于阈值，状态回退
+    threshold = int(get_config('click_threshold') or 10)
+    if new_count < threshold:
+        db.execute("UPDATE books SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'recommended'", (book_id,))
+
+    db.commit()
+    return jsonify({'success': True, 'click_count': new_count, 'reach_threshold': new_count >= threshold})
+
+
+@app.route('/api/my-recommendations', methods=['GET'])
+def my_recommendations():
+    """获取当前读者的推荐记录"""
+    db = get_db()
+    reader_id = get_client_id()
+    rows = db.execute('''
+        SELECT b.*, cr.clicked_at
+        FROM click_records cr
+        JOIN books b ON b.id = cr.book_id
+        WHERE cr.reader_id = ?
+        ORDER BY cr.clicked_at DESC
+    ''', (reader_id,)).fetchall()
+
+    results = []
+    for r in rows:
+        d = dict(r)
+        d['release_date'] = smart_str(d.get('release_date'))
+        d['pub_year'] = smart_str(d.get('pub_year'))
+        results.append(d)
+
+    return jsonify(results)
+
+
 @app.route('/api/books/trending', methods=['GET'])
 def trending_books():
     db = get_db()
