@@ -147,6 +147,12 @@ def init_db():
             db.execute(f'ALTER TABLE books ADD COLUMN {col} TEXT DEFAULT \'\'')
         except sqlite3.OperationalError:
             pass
+    # 迁移：click_records 表
+    for col in ['reader_id', 'reader_ip']:
+        try:
+            db.execute(f'ALTER TABLE click_records ADD COLUMN {col} TEXT DEFAULT \'\'')
+        except sqlite3.OperationalError:
+            pass
     # 迁移：isbn_cache 表
     for col in ['price', 'binding', 'edition', 'impression', 'language', 'format', 'cip', 'clc_number', 'keywords']:
         try:
