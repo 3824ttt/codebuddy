@@ -637,46 +637,86 @@ def _clean_isbn(raw):
     return s if s else None
 
 
-def lookup_isbn(isbn):
-    """查询单个 ISBN，先查缓存，缓存没有则调 Google Books API"""
-    isbn_clean = _clean_isbn(isbn)
-    if not isbn_clean:
-        return None, '无效的ISBN号'
+# ---------- ISBN API 源配置 ----------
+# 按优先级降序，前一个失败则尝试下一个
+ISBN_API_SOURCES = [
+    {
+        'name': 'OpenLibrary',
+        'base': 'https://openlibrary.org',
+        'cover_tpl': 'https://covers.openlibrary.org/b/id/{cover_id}-L.jpg',
+    },
+    {
+        'name': 'GoogleBooks',
+        'base': 'https://www.googleapis.com/books/v1',
+        'cover_tpl': None,  # 用 volumeInfo.imageLinks
+    },
+]
 
-    db = sqlite3.connect(DATABASE)
-    db.row_factory = sqlite3.Row
 
-    # 1) 查缓存
-    row = db.execute('SELECT * FROM isbn_cache WHERE isbn = ?', (isbn_clean,)).fetchone()
-    if row:
-        result = dict(row)
-        db.close()
-        return result, None
+def _fetch_openlibrary(isbn_clean):
+    """从 Open Library API 获取图书信息"""
+    url = f'https://openlibrary.org/api/books?bibkeys=ISBN:{isbn_clean}&format=json&jscmd=data'
+    req = urllib.request.Request(url, headers={'User-Agent': 'ReaderRecommend/1.0'})
+    resp = urllib.request.urlopen(req, timeout=10)
+    data = json.loads(resp.read().decode('utf-8'))
+    key = f'ISBN:{isbn_clean}'
+    if key not in data:
+        return None
+    book = data[key]
 
-    # 2) 调 API
-    try:
-        url = f'https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn_clean}'
-        req = urllib.request.Request(url, headers={'User-Agent': 'ReaderRecommend/1.0'})
-        resp = urllib.request.urlopen(req, timeout=10)
-        data = json.loads(resp.read().decode('utf-8'))
-    except Exception as e:
-        db.close()
-        return None, f'API调用失败：{str(e)}'
+    def _get(key, default=''):
+        v = book.get(key, '')
+        if isinstance(v, list):
+            return ', '.join(str(x.get('name', x)) if isinstance(x, dict) else str(x) for x in v)
+        return str(v) if v else default
 
+    authors = _get('authors')
+    publishers = _get('publishers')
+    pub_date = _get('publish_date')
+    pub_year = pub_date[:4] if pub_date else ''
+    pages = str(book.get('number_of_pages', ''))
+
+    # 描述/摘要
+    desc = ''
+    if 'notes' in book:
+        desc = book['notes']
+    elif 'description' in book:
+        desc = str(book['description']) if isinstance(book['description'], str) else str(book['description'].get('value', ''))
+
+    # 封面
+    cover_url = ''
+    covers = book.get('cover', {})
+    if 'large' in covers:
+        cover_url = covers['large']
+    elif 'medium' in covers:
+        cover_url = covers['medium']
+    elif 'small' in covers:
+        cover_url = covers['small']
+
+    return {
+        '_source': 'OpenLibrary',
+        'isbn': isbn_clean,
+        'title': _get('title'),
+        'subtitle': _get('subtitle', ''),
+        'author': authors,
+        'publisher': publishers,
+        'pub_year': pub_year,
+        'pages': pages,
+        'description': desc[:2000] if desc else '',
+        'cover_url': cover_url,
+    }
+
+
+def _fetch_googlebooks(isbn_clean):
+    """从 Google Books API 获取图书信息（备用）"""
+    url = f'https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn_clean}'
+    req = urllib.request.Request(url, headers={'User-Agent': 'ReaderRecommend/1.0'})
+    resp = urllib.request.urlopen(req, timeout=10)
+    data = json.loads(resp.read().decode('utf-8'))
     items = data.get('items', [])
     if not items:
-        # 也存缓存（标记为未找到）
-        db.execute(
-            'INSERT OR IGNORE INTO isbn_cache (isbn, title) VALUES (?, ?)',
-            (isbn_clean, '')
-        )
-        db.commit()
-        db.close()
-        return None, '未找到该ISBN的图书信息'
-
-    # 3) 解析数据
+        return None
     vol = items[0].get('volumeInfo', {})
-    industry_ids = vol.get('industryIdentifiers', [])
 
     def _get_val(*keys):
         for k in keys:
@@ -695,14 +735,14 @@ def lookup_isbn(isbn):
     pub_year = pub_date[:4] if pub_date else ''
     pages = str(vol.get('pageCount', ''))
     description = _get_val('description')
-    # 封面：用 Google Books 的缩略图，替换 zoom=1 为更大尺寸
     cover_url = ''
     image_links = vol.get('imageLinks', {})
     if image_links:
         cover_url = image_links.get('thumbnail', '') or image_links.get('smallThumbnail', '')
         cover_url = cover_url.replace('zoom=1', 'zoom=0').replace('http://', 'https://')
 
-    cache_data = {
+    return {
+        '_source': 'GoogleBooks',
         'isbn': isbn_clean,
         'title': title,
         'subtitle': subtitle,
@@ -714,18 +754,59 @@ def lookup_isbn(isbn):
         'cover_url': cover_url,
     }
 
-    # 4) 存缓存
+
+def lookup_isbn(isbn):
+    """查询单个 ISBN：先查缓存 → 依次尝试 OpenLibrary / GoogleBooks API"""
+    isbn_clean = _clean_isbn(isbn)
+    if not isbn_clean:
+        return None, '无效的ISBN号', None
+
+    db = sqlite3.connect(DATABASE)
+    db.row_factory = sqlite3.Row
+
+    # 1) 查缓存
+    row = db.execute('SELECT * FROM isbn_cache WHERE isbn = ?', (isbn_clean,)).fetchone()
+    if row:
+        result = dict(row)
+        db.close()
+        return result, None, 'cache'
+
+    # 2) 依次尝试多个 API 源
+    cache_data = None
+    last_error = ''
+    for source in ISBN_API_SOURCES:
+        try:
+            if source['name'] == 'OpenLibrary':
+                cache_data = _fetch_openlibrary(isbn_clean)
+            elif source['name'] == 'GoogleBooks':
+                cache_data = _fetch_googlebooks(isbn_clean)
+            if cache_data:
+                break
+        except urllib.error.URLError as e:
+            last_error = f'{source["name"]}: {e.reason}'
+            continue
+        except Exception as e:
+            last_error = f'{source["name"]}: {str(e)}'
+            continue
+
+    if not cache_data:
+        db.close()
+        return None, f'所有API源均不可用（{last_error}）', None
+
+    # 3) 存缓存
+    source_name = cache_data.get('_source', 'api')
     db.execute('''
         INSERT OR IGNORE INTO isbn_cache (isbn, title, subtitle, author, publisher, pub_year, pages, description, cover_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        isbn_clean, title, subtitle, authors, publisher, pub_year, pages,
-        cache_data['description'], cover_url
+        isbn_clean, cache_data['title'], cache_data.get('subtitle', ''), cache_data.get('author', ''),
+        cache_data.get('publisher', ''), cache_data.get('pub_year', ''), cache_data.get('pages', ''),
+        cache_data.get('description', ''), cache_data.get('cover_url', '')
     ))
     db.commit()
     db.close()
 
-    return cache_data, None
+    return cache_data, None, source_name
 
 
 @app.route('/api/admin/books/lookup-isbn', methods=['POST'])
@@ -737,11 +818,13 @@ def lookup_isbn_api():
     if not isbn:
         return jsonify({'error': '请提供ISBN号'}), 400
 
-    result, error = lookup_isbn(isbn)
+    result, error, source = lookup_isbn(isbn)
     if error:
         return jsonify({'error': error}), 404
 
-    return jsonify({'success': True, 'book': result, 'source': 'cache' if result.get('fetched_at') else 'api'})
+    # 清理内部字段
+    result.pop('_source', None)
+    return jsonify({'success': True, 'book': result, 'source': source})
 
 
 @app.route('/api/admin/books/lookup-isbn/batch', methods=['POST'])
@@ -764,7 +847,8 @@ def lookup_isbn_batch():
     not_found = []
 
     for isbn in isbns:
-        result, error = lookup_isbn(isbn)
+        result, error, _source = lookup_isbn(isbn)
+        result.pop('_source', None) if result else None
         if error:
             not_found.append({'isbn': isbn, 'error': error})
             continue
