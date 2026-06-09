@@ -257,7 +257,8 @@ body {
   <div class="modal">
     <h2>批量导入图书</h2>
     <div class="tab-btns">
-      <button class="tab-btn active" onclick="switchTab('excel')">Excel 上传 (.xlsx)</button>
+      <button class="tab-btn active" onclick="switchTab('excel')">Excel 上传</button>
+      <button class="tab-btn" onclick="switchTab('isbn')">ISBN 查询导入</button>
       <button class="tab-btn" onclick="switchTab('json')">JSON 导入</button>
     </div>
 
@@ -284,6 +285,22 @@ body {
         <button class="btn btn-primary" id="btnExcelImport" onclick="doExcelImport()" disabled>上传并导入</button>
       </div>
       <div id="excelImportStatus"></div>
+    </div>
+
+    <!-- ISBN Tab -->
+    <div class="tab-panel" id="tab-isbn">
+      <div class="fields-note">
+        <strong>ISBN 查询导入：</strong>
+        输入 ISBN 号（每行一个，或用逗号分隔），系统自动从 <strong>Google Books</strong> 获取书名、作者、出版社、封面等信息。
+        查询结果会缓存到本地数据库，<strong>同一 ISBN 不会重复调用 API</strong>。
+      </div>
+      <textarea id="isbnInput" placeholder="输入ISBN，每行一个或用逗号分隔&#10;例如：&#10;9787536692930&#10;9787544270878&#10;9787020002207"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn btn-primary" id="btnIsbnLookup" onclick="doIsbnLookup()">🔍 查询图书信息</button>
+        <button class="btn btn-success" id="btnIsbnImport" onclick="doIsbnImport()" disabled>📥 全部导入</button>
+      </div>
+      <div id="isbnLookupStatus" style="margin-top:8px;font-size:13px;"></div>
+      <div id="isbnResultCards" style="margin-top:16px;max-height:50vh;overflow-y:auto;"></div>
     </div>
 
     <!-- JSON Tab -->
@@ -590,7 +607,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   event.target.classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('show');
+  document.getElementById('tab-' + tab).classList.add('active');
 }
 function openImportModal() {
   document.getElementById('importData').value = '';
@@ -598,8 +615,16 @@ function openImportModal() {
   document.getElementById('excelImportStatus').innerHTML = '';
   document.getElementById('fileName').textContent = '';
   document.getElementById('btnExcelImport').disabled = true;
+  document.getElementById('isbnInput').value = '';
+  document.getElementById('isbnLookupStatus').innerHTML = '';
+  document.getElementById('isbnResultCards').innerHTML = '';
+  document.getElementById('btnIsbnImport').disabled = true;
+  isbnLookupResults = [];
   excelFile = null;
   document.getElementById('fileInput').value = '';
+  // 默认切回 Excel 标签
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+  document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === 0));
   document.getElementById('importModal').classList.add('show');
 }
 function closeImportModal() { document.getElementById('importModal').classList.remove('show'); }
@@ -660,6 +685,110 @@ async function downloadTemplate() {
     const a = document.createElement('a'); a.href=url; a.download='图书导入模板.xlsx'; a.click();
     URL.revokeObjectURL(url); toast('模板已下载', 'success');
   } catch(e) { toast(e.message, 'error'); }
+}
+
+// ======= ISBN Lookup =======
+let isbnLookupResults = [];
+
+async function doIsbnLookup() {
+  const raw = document.getElementById('isbnInput').value.trim();
+  if (!raw) return toast('请输入ISBN号', 'info');
+
+  const isbns = raw.replace(/,/g, '\n').split('\n').map(s => s.trim()).filter(Boolean);
+  if (isbns.length === 0) return toast('未识别到有效ISBN', 'info');
+
+  const statusEl = document.getElementById('isbnLookupStatus');
+  const cardsEl = document.getElementById('isbnResultCards');
+  const btnLookup = document.getElementById('btnIsbnLookup');
+  const btnImport = document.getElementById('btnIsbnImport');
+
+  btnLookup.disabled = true;
+  btnLookup.textContent = '查询中...';
+  isbnLookupResults = [];
+  cardsEl.innerHTML = '';
+
+  let success = 0, fail = 0;
+  for (let i = 0; i < isbns.length; i++) {
+    const isbn = isbns[i];
+    statusEl.innerHTML = `<span style="color:var(--primary)">正在查询 ${i+1}/${isbns.length}：${isbn} ...</span>`;
+
+    try {
+      const data = await api('/api/admin/books/lookup-isbn', {
+        method: 'POST',
+        body: JSON.stringify({ isbn }),
+      });
+      if (data.success && data.book && data.book.title) {
+        isbnLookupResults.push(data.book);
+        success++;
+        // Render card
+        const coverHtml = data.book.cover_url
+          ? `<img src="${data.book.cover_url}" alt="封面" style="width:60px;height:85px;object-fit:cover;border-radius:4px;flex-shrink:0;">`
+          : `<div style="width:60px;height:85px;background:#e2e8f0;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:11px;">无封面</div>`;
+
+        cardsEl.innerHTML += `
+        <div class="isbn-card" style="display:flex;gap:14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;align-items:start;">
+          ${coverHtml}
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:15px;margin-bottom:4px;">${esc(data.book.title)}</div>
+            ${data.book.subtitle ? `<div style="color:var(--text-secondary);font-size:13px;margin-bottom:2px;">${esc(data.book.subtitle)}</div>` : ''}
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:2px;">${esc(data.book.author) || '作者未知'}</div>
+            <div style="font-size:12px;color:var(--text-secondary);">
+              ${data.book.publisher ? esc(data.book.publisher)+' · ' : ''}${data.book.pub_year || ''}
+              ${data.book.pages ? ' · '+data.book.pages+'页' : ''}
+            </div>
+            ${data.book.description ? `<div style="font-size:12px;color:#94a3b8;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(data.book.description)}</div>` : ''}
+            <div style="margin-top:4px;font-size:11px;">
+              <span style="color:var(--success)">ISBN: ${esc(data.book.isbn)}</span>
+              <span style="color:var(--text-secondary);margin-left:8px;">${data.source === 'cache' ? '💾 来自缓存' : '🌐 来自API'}</span>
+            </div>
+          </div>
+        </div>`;
+      } else {
+        fail++;
+        cardsEl.innerHTML += `<div style="padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin-bottom:8px;font-size:13px;">❌ ${isbn}：${data.error || '未找到'}</div>`;
+      }
+    } catch (e) {
+      fail++;
+      cardsEl.innerHTML += `<div style="padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin-bottom:8px;font-size:13px;">❌ ${isbn}：${e.message}</div>`;
+    }
+  }
+
+  statusEl.innerHTML = `<span style="color:var(--success)">✅ 查询完成：成功 ${success} / 失败 ${fail}（共 ${isbns.length} 个ISBN）</span>`;
+  btnLookup.disabled = false;
+  btnLookup.textContent = '🔍 查询图书信息';
+  btnImport.disabled = (isbnLookupResults.length === 0);
+}
+
+async function doIsbnImport() {
+  if (isbnLookupResults.length === 0) return toast('没有可导入的图书', 'info');
+
+  const btn = document.getElementById('btnIsbnImport');
+  const statusEl = document.getElementById('isbnLookupStatus');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+
+  try {
+    const isbns = isbnLookupResults.map(b => b.isbn);
+    const data = await api('/api/admin/books/lookup-isbn/batch', {
+      method: 'POST',
+      body: JSON.stringify({ isbns }),
+    });
+    statusEl.innerHTML = `<span style="color:var(--success)">✅ 导入完成：新增 ${data.imported} 本，跳过重复 ${data.skipped} 本</span>`;
+    if (data.not_found && data.not_found.length > 0) {
+      statusEl.innerHTML += `<br><span style="color:var(--warning);font-size:11px;">⚠ 未找到：${data.not_found.map(n=>n.isbn).join(', ')}</span>`;
+    }
+    toast(`导入了 ${data.imported} 本图书`, 'success');
+    loadBooks();
+    // 清空
+    isbnLookupResults = [];
+    document.getElementById('isbnResultCards').innerHTML = '';
+    document.getElementById('isbnInput').value = '';
+  } catch (e) {
+    statusEl.innerHTML = `<span style="color:var(--danger)">导入失败：${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📥 全部导入';
+  }
 }
 
 // Drag & drop for upload area

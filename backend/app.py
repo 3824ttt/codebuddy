@@ -105,6 +105,19 @@ def init_db():
             FOREIGN KEY (book_id) REFERENCES books(id)
         );
 
+        CREATE TABLE IF NOT EXISTS isbn_cache (
+            isbn TEXT PRIMARY KEY,
+            title TEXT DEFAULT '',
+            subtitle TEXT DEFAULT '',
+            author TEXT DEFAULT '',
+            publisher TEXT DEFAULT '',
+            pub_year TEXT DEFAULT '',
+            pages TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            cover_url TEXT DEFAULT '',
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         INSERT OR IGNORE INTO config (key, value) VALUES ('click_threshold', '10');
         INSERT OR IGNORE INTO config (key, value) VALUES ('click_cooldown_hours', '24');
     ''')
@@ -604,6 +617,194 @@ def download_template():
         as_attachment=True,
         download_name='图书导入模板.xlsx'
     )
+
+
+# ==================== ISBN 查询 ====================
+import re
+import urllib.request
+import urllib.parse
+import urllib.error
+
+
+def _clean_isbn(raw):
+    """清洗 ISBN：去除非数字字符，返回纯数字或13位ISBN"""
+    s = re.sub(r'[^0-9Xx]', '', raw.strip())
+    s = s.upper()
+    if len(s) == 10:
+        return s
+    if len(s) == 13:
+        return s
+    return s if s else None
+
+
+def lookup_isbn(isbn):
+    """查询单个 ISBN，先查缓存，缓存没有则调 Google Books API"""
+    isbn_clean = _clean_isbn(isbn)
+    if not isbn_clean:
+        return None, '无效的ISBN号'
+
+    db = sqlite3.connect(DATABASE)
+    db.row_factory = sqlite3.Row
+
+    # 1) 查缓存
+    row = db.execute('SELECT * FROM isbn_cache WHERE isbn = ?', (isbn_clean,)).fetchone()
+    if row:
+        result = dict(row)
+        db.close()
+        return result, None
+
+    # 2) 调 API
+    try:
+        url = f'https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn_clean}'
+        req = urllib.request.Request(url, headers={'User-Agent': 'ReaderRecommend/1.0'})
+        resp = urllib.request.urlopen(req, timeout=10)
+        data = json.loads(resp.read().decode('utf-8'))
+    except Exception as e:
+        db.close()
+        return None, f'API调用失败：{str(e)}'
+
+    items = data.get('items', [])
+    if not items:
+        # 也存缓存（标记为未找到）
+        db.execute(
+            'INSERT OR IGNORE INTO isbn_cache (isbn, title) VALUES (?, ?)',
+            (isbn_clean, '')
+        )
+        db.commit()
+        db.close()
+        return None, '未找到该ISBN的图书信息'
+
+    # 3) 解析数据
+    vol = items[0].get('volumeInfo', {})
+    industry_ids = vol.get('industryIdentifiers', [])
+
+    def _get_val(*keys):
+        for k in keys:
+            v = vol.get(k, '')
+            if isinstance(v, list) and len(v) > 0:
+                return ', '.join(str(x) for x in v)
+            if v:
+                return str(v)
+        return ''
+
+    title = _get_val('title')
+    subtitle = _get_val('subtitle')
+    authors = _get_val('authors')
+    publisher = _get_val('publisher')
+    pub_date = _get_val('publishedDate')
+    pub_year = pub_date[:4] if pub_date else ''
+    pages = str(vol.get('pageCount', ''))
+    description = _get_val('description')
+    # 封面：用 Google Books 的缩略图，替换 zoom=1 为更大尺寸
+    cover_url = ''
+    image_links = vol.get('imageLinks', {})
+    if image_links:
+        cover_url = image_links.get('thumbnail', '') or image_links.get('smallThumbnail', '')
+        cover_url = cover_url.replace('zoom=1', 'zoom=0').replace('http://', 'https://')
+
+    cache_data = {
+        'isbn': isbn_clean,
+        'title': title,
+        'subtitle': subtitle,
+        'author': authors,
+        'publisher': publisher,
+        'pub_year': pub_year,
+        'pages': pages,
+        'description': description[:2000] if description else '',
+        'cover_url': cover_url,
+    }
+
+    # 4) 存缓存
+    db.execute('''
+        INSERT OR IGNORE INTO isbn_cache (isbn, title, subtitle, author, publisher, pub_year, pages, description, cover_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        isbn_clean, title, subtitle, authors, publisher, pub_year, pages,
+        cache_data['description'], cover_url
+    ))
+    db.commit()
+    db.close()
+
+    return cache_data, None
+
+
+@app.route('/api/admin/books/lookup-isbn', methods=['POST'])
+@admin_required
+def lookup_isbn_api():
+    """单个 ISBN 查询"""
+    data = request.get_json()
+    isbn = (data.get('isbn') or '').strip()
+    if not isbn:
+        return jsonify({'error': '请提供ISBN号'}), 400
+
+    result, error = lookup_isbn(isbn)
+    if error:
+        return jsonify({'error': error}), 404
+
+    return jsonify({'success': True, 'book': result, 'source': 'cache' if result.get('fetched_at') else 'api'})
+
+
+@app.route('/api/admin/books/lookup-isbn/batch', methods=['POST'])
+@admin_required
+def lookup_isbn_batch():
+    """批量 ISBN 查询并自动导入"""
+    data = request.get_json()
+    isbns_raw = data.get('isbns', '')
+    if isinstance(isbns_raw, str):
+        isbns = [i.strip() for i in isbns_raw.replace(',', '\n').split('\n') if i.strip()]
+    else:
+        isbns = [str(i).strip() for i in isbns_raw if i]
+
+    if not isbns:
+        return jsonify({'error': '请提供ISBN号'}), 400
+
+    results = []
+    imported = 0
+    skipped = 0
+    not_found = []
+
+    for isbn in isbns:
+        result, error = lookup_isbn(isbn)
+        if error:
+            not_found.append({'isbn': isbn, 'error': error})
+            continue
+        if not result.get('title'):
+            not_found.append({'isbn': isbn, 'error': '未找到图书信息'})
+            continue
+
+        # 检查是否已在图书库中
+        isbn_clean = _clean_isbn(isbn)
+        db = get_db()
+        exist = db.execute('SELECT id FROM books WHERE isbn = ?', (isbn_clean,)).fetchone()
+        if exist:
+            skipped += 1
+            result['status'] = 'skipped'
+        else:
+            _insert_book(db, {
+                'title': result['title'],
+                'subtitle': result.get('subtitle', ''),
+                'author': result.get('author', ''),
+                'publisher': result.get('publisher', ''),
+                'isbn': isbn_clean,
+                'pub_year': result.get('pub_year', ''),
+                'pages': result.get('pages', ''),
+                'description': result.get('description', ''),
+                'cover_url': result.get('cover_url', ''),
+            })
+            db.commit()
+            imported += 1
+            result['status'] = 'imported'
+
+        results.append(result)
+
+    return jsonify({
+        'success': True,
+        'total': len(isbns),
+        'imported': imported,
+        'skipped': skipped,
+        'not_found': not_found,
+        'results': results,
+    })
 
 
 @app.route('/api/admin/books/<int:book_id>', methods=['DELETE'])
