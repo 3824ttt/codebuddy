@@ -678,17 +678,14 @@ async function loadBooks() {
   // 重新绑定列宽拖拽
   initColumnResize();
 
-  const tp = Math.ceil(data.total / 15);
+  const total = data.total || 0;
+  const tp = Math.ceil(total / 15) || 1;
   const pagEl = document.getElementById('bookPagination');
-  if (tp > 1) {
-    pagEl.innerHTML = `<span>第 ${bookPage}/${tp} 页（共${data.total}本）</span>
-       <button class="btn btn-outline btn-sm pag-prev" ${bookPage<=1?'disabled':''}>上一页</button>
-       <button class="btn btn-outline btn-sm pag-next" ${bookPage>=tp?'disabled':''}>下一页</button>`;
-    pagEl.querySelector('.pag-prev')?.addEventListener('click', () => { if (bookPage > 1) { bookPage--; loadBooks(); } });
-    pagEl.querySelector('.pag-next')?.addEventListener('click', () => { if (bookPage < tp) { bookPage++; loadBooks(); } });
-  } else {
-    pagEl.innerHTML = '';
-  }
+  pagEl.innerHTML = `<span>第 ${bookPage}/${tp} 页（共${total}本）</span>
+     <button class="btn btn-outline btn-sm pag-prev" ${bookPage<=1?'disabled':''}>上一页</button>
+     <button class="btn btn-outline btn-sm pag-next" ${bookPage>=tp?'disabled':''}>下一页</button>`;
+  pagEl.querySelector('.pag-prev')?.addEventListener('click', () => { if (bookPage > 1) { bookPage--; loadBooks(); } });
+  pagEl.querySelector('.pag-next')?.addEventListener('click', () => { if (bookPage < tp) { bookPage++; loadBooks(); } });
 }
 
 document.getElementById('bookSearch').addEventListener('input', debounce(() => { bookPage=1; loadBooks(); }, 400));
