@@ -379,6 +379,8 @@ def admin_books():
     db = get_db()
     search = request.args.get('search', '')
     status = request.args.get('status', '')
+    sort = request.args.get('sort', 'id')
+    order_dir = request.args.get('order', 'desc')  # asc / desc
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 20))
 
@@ -391,10 +393,20 @@ def admin_books():
         where.append('status = ?')
         params.append(status)
 
+    # 排序映射（防注入）
+    allowed_sort = {
+        'id': 'id', 'title': 'title', 'author': 'author', 'publisher': 'publisher',
+        'isbn': 'isbn', 'pub_year': 'pub_year', 'click_count': 'click_count',
+        'updated_at': 'updated_at', 'category': 'category',
+        'clc_number': 'clc_number', 'recommended_subject': 'recommended_subject',
+    }
+    sort_column = allowed_sort.get(sort, 'id')
+    sort_dir = 'DESC' if order_dir.lower() == 'desc' else 'ASC'
+
     where_clause = ' AND '.join(where)
     count = db.execute(f'SELECT COUNT(*) FROM books WHERE {where_clause}', params).fetchone()[0]
     rows = db.execute(
-        f'SELECT * FROM books WHERE {where_clause} ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+        f'SELECT * FROM books WHERE {where_clause} ORDER BY {sort_column} {sort_dir} LIMIT ? OFFSET ?',
         params + [per_page, (page - 1) * per_page]
     ).fetchall()
 

@@ -174,7 +174,7 @@
     box-shadow: var(--shadow-md);
   }
   .book-cover {
-    height: 180px;
+    height: 240px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     align-items: center;
@@ -183,18 +183,25 @@
     font-size: 48px;
     position: relative;
     overflow: hidden;
+    transition: transform 0.3s ease;
   }
+  .book-card:hover .book-cover { transform: scale(1.03); }
+  .book-card:hover .book-cover img { transform: scale(1.05); }
   .book-cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.4s ease;
   }
   .book-cover .cover-text {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     text-align: center;
-    padding: 20px;
-    line-height: 1.4;
+    padding: 24px;
+    line-height: 1.5;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
   }
   .book-badge {
     position: absolute;
@@ -593,9 +600,9 @@ function renderBooks() {
     }
 
     const coverHtml = book.cover_url
-      ? `<img src="${book.cover_url}" alt="${book.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
-         <div class="cover-text" style="display:none">${book.title}</div>`
-      : `<div class="cover-text">${book.title}</div>`;
+      ? `<img src="${book.cover_url}" alt="${escapeHtml(book.title)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+         <div class="cover-text" style="display:none">${escapeHtml(book.title)}</div>`
+      : `<div class="cover-text">${escapeHtml(book.title)}</div>`;
 
     return `
       <div class="book-card">

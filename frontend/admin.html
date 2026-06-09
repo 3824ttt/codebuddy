@@ -75,12 +75,27 @@ body {
 .btn-sm { padding: 4px 10px; font-size: 12px; }
 
 .table-wrap { overflow-x: auto; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
-.data-table th { text-align: left; padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-secondary); font-size: 12px; position: sticky; top: 0; }
-.data-table td { padding: 8px; border-bottom: 1px solid var(--border); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.data-table th {
+  text-align: left; padding: 10px 8px; background: #f8fafc; border-bottom: 2px solid var(--border);
+  font-weight: 600; color: var(--text-secondary); font-size: 12px; position: sticky; top: 0;
+  cursor: pointer; user-select: none; white-space: nowrap; position: relative;
+}
+.data-table th:hover { color: var(--primary); background: #eef2ff; }
+.data-table th .sort-arrow { margin-left: 4px; font-size: 10px; opacity: 0.4; }
+.data-table th.sort-asc .sort-arrow, .data-table th.sort-desc .sort-arrow { opacity: 1; color: var(--primary); }
+.data-table th .resize-handle {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize;
+  background: transparent; z-index: 1;
+}
+.data-table th .resize-handle:hover, .data-table th .resize-handle.active { background: var(--primary); opacity: 0.3; }
+.data-table td { padding: 8px; border-bottom: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: #f8fafc; }
 .td-title { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-cover { width: 45px; padding: 4px !important; }
+.td-cover img { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; display: block; }
+.td-cover .no-cover { width: 40px; height: 56px; background: #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-secondary); }
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-pending { background: #e2e8f0; color: #64748b; }
@@ -186,13 +201,23 @@ body {
         <button class="btn btn-outline btn-sm" onclick="openClassifyConfig()">AI配置</button>
       </div>
       <div class="table-wrap">
-      <table class="data-table">
+      <table class="data-table" id="booksTable">
         <thead>
           <tr>
-            <th>ID</th><th>书名</th><th>作者</th><th>出版社</th>
-            <th>ISBN</th><th>价格</th><th>分类</th><th>中图分类</th>
-            <th>学科/专业</th>
-            <th>出版年</th><th>点击</th><th>状态</th><th>操作</th>
+            <th data-sort="id" style="width:55px">ID<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="" style="width:48px">封面<span class="resize-handle"></span></th>
+            <th data-sort="title" style="width:160px">书名<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="author" style="width:90px">作者<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="publisher" style="width:100px">出版社<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="isbn" style="width:100px">ISBN<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="" style="width:60px">价格<span class="resize-handle"></span></th>
+            <th data-sort="category" style="width:70px">分类<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="clc_number" style="width:80px">中图分类<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="recommended_subject" style="width:100px">学科/专业<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="pub_year" style="width:60px">出版年<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="click_count" style="width:50px">点击<span class="sort-arrow"></span><span class="resize-handle"></span></th>
+            <th data-sort="" style="width:70px">状态<span class="resize-handle"></span></th>
+            <th data-sort="" style="width:140px">操作<span class="resize-handle"></span></th>
           </tr>
         </thead>
         <tbody id="bookTableBody"></tbody>
@@ -364,6 +389,7 @@ body {
 <script>
 let TOKEN = localStorage.getItem('admin_token') || '';
 let bookPage = 1, selectedRecIds = [], excelFile = null;
+let bookSort = 'id', bookSortOrder = 'desc';
 
 function apiHeaders() {
   return { 'X-Admin-Token': TOKEN };
@@ -543,7 +569,7 @@ async function recommendSingle(bookId) {
 async function loadBooks() {
   const search = document.getElementById('bookSearch').value;
   const status = document.getElementById('bookStatusFilter').value;
-  const params = new URLSearchParams({ search, status, page: bookPage, per_page: 15 });
+  const params = new URLSearchParams({ search, status, page: bookPage, per_page: 15, sort: bookSort, order: bookSortOrder });
   const data = await api('/api/admin/books?' + params);
   const statusMap = {
     pending: '<span class="badge badge-pending">待推荐</span>',
@@ -558,9 +584,13 @@ async function loadBooks() {
     const majorTag = b.recommended_major
       ? `<div style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(b.recommended_major)}">${esc(b.recommended_subject)}<br><span style="color:var(--text-secondary)">${esc(b.recommended_major)}</span></div>`
       : `<span style="color:var(--text-secondary);font-size:12px">-</span>`;
+    const coverHtml = b.cover_url
+      ? `<td class="td-cover"><img src="${esc(b.cover_url)}" alt="封面" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"><div class="no-cover" style="display:none">📖</div></td>`
+      : `<td class="td-cover"><div class="no-cover">📖</div></td>`;
     return `
     <tr>
       <td>${b.id}</td>
+      ${coverHtml}
       <td class="td-title" title="${esc(b.title)}"><strong>${esc(b.title)}</strong>${b.subtitle ? '<br><span style="color:var(--text-secondary);font-size:11px">'+esc(b.subtitle)+'</span>' : ''}</td>
       <td>${esc(b.author)}</td>
       <td>${esc(b.publisher)}</td>
@@ -578,7 +608,21 @@ async function loadBooks() {
         <button class="btn btn-danger btn-sm" onclick="deleteBook(${b.id})">删除</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="14" style="text-align:center;color:var(--text-secondary);padding:24px;">暂无图书</td></tr>';
+  }).join('') || '<tr><td colspan="15" style="text-align:center;color:var(--text-secondary);padding:24px;">暂无图书</td></tr>';
+
+  // 更新排序列头样式
+  document.querySelectorAll('#booksTable th[data-sort]').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.sort === bookSort) {
+      th.classList.add(bookSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+      th.querySelector('.sort-arrow').textContent = bookSortOrder === 'asc' ? '▲' : '▼';
+    } else {
+      th.querySelector('.sort-arrow').textContent = '';
+    }
+  });
+
+  // 重新绑定列宽拖拽
+  initColumnResize();
 
   const tp = Math.ceil(data.total / 15);
   const pagEl = document.getElementById('bookPagination');
@@ -894,6 +938,74 @@ async function saveConfig() {
   if (threshold < 1 || cooldown < 1) return toast('数值必须大于0', 'error');
   await api('/api/admin/config', {method:'PUT', body:JSON.stringify({click_threshold:threshold, click_cooldown_hours:cooldown})});
   toast('配置已保存', 'success');
+}
+
+// ======= 列排序（事件委托） =======
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.getElementById('booksTable');
+  if (!table) return;
+  table.addEventListener('click', function(e) {
+    const th = e.target.closest('th[data-sort]');
+    if (!th || !th.dataset.sort) return;
+    // 忽略拖拽手柄上的点击
+    if (e.target.closest('.resize-handle')) return;
+    const col = th.dataset.sort;
+    if (bookSort === col) {
+      bookSortOrder = bookSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      bookSort = col;
+      bookSortOrder = col === 'title' || col === 'author' ? 'asc' : 'desc';
+    }
+    bookPage = 1;
+    loadBooks();
+  });
+});
+
+// ======= 列宽拖拽调整 =======
+function initColumnResize() {
+  const table = document.getElementById('booksTable');
+  if (!table) return;
+  const handles = table.querySelectorAll('.resize-handle');
+  let startX, startWidth, currentTh;
+
+  handles.forEach(handle => {
+    // 移除旧监听器（通过克隆节点）
+    const newHandle = handle.cloneNode(true);
+    handle.parentNode.replaceChild(newHandle, handle);
+
+    newHandle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      currentTh = this.parentElement;
+      startX = e.clientX;
+      startWidth = currentTh.offsetWidth;
+      this.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      function onMouseMove(e) {
+        if (!currentTh) return;
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(40, startWidth + diff);
+        currentTh.style.width = newWidth + 'px';
+      }
+
+      function onMouseUp() {
+        if (currentTh) {
+          const h = currentTh.querySelector('.resize-handle');
+          if (h) h.classList.remove('active');
+        }
+        currentTh = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  });
 }
 
 function esc(s) { return (s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
