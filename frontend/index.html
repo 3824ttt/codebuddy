@@ -121,7 +121,7 @@
     background: #fff;
   }
   .filter-select:focus { border-color: var(--primary); }
-  .sort-btn {
+  .sort-btn, .view-toggle {
     padding: 10px 20px;
     border: 2px solid var(--border);
     border-radius: 8px;
@@ -133,7 +133,8 @@
     align-items: center;
     gap: 6px;
   }
-  .sort-btn:hover, .sort-btn.active {
+  .sort-btn:hover, .sort-btn.active,
+  .view-toggle:hover, .view-toggle.active {
     border-color: var(--primary);
     color: var(--primary);
     background: var(--primary-light);
@@ -159,6 +160,11 @@
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
   }
+  .book-grid.list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
   .book-card {
     background: var(--card-bg);
     border-radius: var(--radius);
@@ -172,6 +178,14 @@
   .book-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
+  }
+  .book-grid.list .book-card {
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0;
+  }
+  .book-grid.list .book-card:hover {
+    transform: translateY(-2px);
   }
   .book-cover {
     height: 320px;
@@ -187,6 +201,14 @@
   }
   .book-card:hover .book-cover { transform: scale(1.03); }
   .book-card:hover .book-cover img { transform: scale(1.05); }
+  .book-grid.list .book-cover {
+    height: auto;
+    width: 140px;
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+  .book-grid.list .book-card:hover .book-cover { transform: none; }
+  .book-grid.list .book-card:hover .book-cover img { transform: none; }
   .book-cover img {
     width: 100%;
     height: 100%;
@@ -204,6 +226,10 @@
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
   }
+  .book-grid.list .book-cover .cover-text {
+    font-size: 14px;
+    padding: 12px;
+  }
   .book-badge {
     position: absolute;
     top: 10px;
@@ -218,12 +244,20 @@
   .book-badge.recommended {
     background: var(--success);
   }
+  .book-grid.list .book-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
   .book-info {
     padding: 16px;
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  .book-grid.list .book-info {
+    padding: 14px 18px;
+    justify-content: center;
   }
   .book-title {
     font-size: 16px;
@@ -259,6 +293,25 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     flex: 1;
+  }
+  .book-grid.list .book-desc {
+    -webkit-line-clamp: 3;
+  }
+
+  /* List mode: right-side button area */
+  .book-grid.list .btn-recommend {
+    width: 140px;
+    min-width: 140px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: 0;
+    writing-mode: horizontal-tb;
+  }
+  .book-grid.list .heat-count {
+    margin-bottom: 4px;
   }
 
   /* Progress Bar */
@@ -312,6 +365,14 @@
   .btn-recommend.reached {
     background: #059669;
   }
+
+  /* heat count */
+  .heat-count {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  .heat-count strong { color: var(--primary); }
 
   /* Pagination */
   .pagination {
@@ -437,9 +498,12 @@
     <select class="filter-select" id="majorFilter">
       <option value="">全部专业</option>
     </select>
-    <button class="sort-btn active" data-sort="click_count">🔥 热门排序</button>
-    <button class="sort-btn" data-sort="newest">🕐 最新上架</button>
+    <button class="sort-btn active" data-sort="newest">🕐 最新导入</button>
+    <button class="sort-btn" data-sort="click_count">🔥 热门排序</button>
     <button class="sort-btn" data-sort="title">📖 书名排序</button>
+    <span style="color:var(--border);margin:0 4px;">|</span>
+    <button class="view-toggle active" data-view="grid" title="网格视图">▦</button>
+    <button class="view-toggle" data-view="list" title="列表视图">☰</button>
   </div>
 
   <!-- Info Banner -->
@@ -481,7 +545,8 @@ const state = {
   publisher: '',
   subject: '',
   major: '',
-  sort: 'click_count',
+  sort: 'newest',
+  view: 'grid',
   threshold: 10,
   votedBooks: JSON.parse(localStorage.getItem('voted_books') || '{}'),
 };
@@ -573,6 +638,9 @@ function updateCategories() {
 
 function renderBooks() {
   const grid = document.getElementById('bookGrid');
+  // Apply view mode class
+  grid.className = 'book-grid' + (state.view === 'list' ? ' list' : '');
+
   if (state.books.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -722,6 +790,17 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
     state.sort = this.dataset.sort;
     state.page = 1;
     loadBooks();
+  });
+});
+
+// View toggle (grid / list)
+document.querySelectorAll('.view-toggle').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.view-toggle').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    state.view = this.dataset.view;
+    // Re-render with same data, no API call needed
+    renderBooks();
   });
 });
 
