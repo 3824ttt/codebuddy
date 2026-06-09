@@ -93,9 +93,9 @@ body {
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: #f8fafc; }
 .td-title { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-cover { width: 45px; padding: 4px !important; }
-.td-cover img { width: 40px; height: 56px; object-fit: cover; border-radius: 4px; display: block; }
-.td-cover .no-cover { width: 40px; height: 56px; background: #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text-secondary); }
+.td-cover { width: 75px; padding: 4px !important; }
+.td-cover img { width: 68px; height: 96px; object-fit: contain; border-radius: 4px; display: block; background: #f1f5f9; }
+.td-cover .no-cover { width: 68px; height: 96px; background: #e2e8f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-secondary); }
 
 .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-pending { background: #e2e8f0; color: #64748b; }
@@ -205,7 +205,7 @@ body {
         <thead>
           <tr>
             <th data-sort="id" style="width:55px">ID<span class="sort-arrow"></span><span class="resize-handle"></span></th>
-            <th data-sort="" style="width:48px">封面<span class="resize-handle"></span></th>
+            <th data-sort="" style="width:80px">封面<span class="resize-handle"></span></th>
             <th data-sort="title" style="width:160px">书名<span class="sort-arrow"></span><span class="resize-handle"></span></th>
             <th data-sort="author" style="width:90px">作者<span class="sort-arrow"></span><span class="resize-handle"></span></th>
             <th data-sort="publisher" style="width:100px">出版社<span class="sort-arrow"></span><span class="resize-handle"></span></th>
@@ -766,8 +766,8 @@ async function doIsbnLookup() {
         success++;
         // Render card
         const coverHtml = data.book.cover_url
-          ? `<img src="${data.book.cover_url}" alt="封面" style="width:60px;height:85px;object-fit:cover;border-radius:4px;flex-shrink:0;">`
-          : `<div style="width:60px;height:85px;background:#e2e8f0;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:11px;">无封面</div>`;
+          ? `<img src="${data.book.cover_url}" alt="封面" style="width:80px;height:110px;object-fit:contain;border-radius:4px;flex-shrink:0;background:#f1f5f9;">`
+          : `<div style="width:80px;height:110px;background:#e2e8f0;border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:12px;">无封面</div>`;
 
         cardsEl.innerHTML += `
         <div class="isbn-card" style="display:flex;gap:14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;align-items:start;">
