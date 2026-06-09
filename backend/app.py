@@ -60,6 +60,12 @@ def init_db():
             price REAL DEFAULT 0.0,
             pub_year TEXT DEFAULT '',
             pages TEXT DEFAULT '',
+            binding TEXT DEFAULT '',
+            edition TEXT DEFAULT '',
+            impression TEXT DEFAULT '',
+            language TEXT DEFAULT '',
+            format TEXT DEFAULT '',
+            cip TEXT DEFAULT '',
             category TEXT DEFAULT '',
             clc_number TEXT DEFAULT '',
             keywords TEXT DEFAULT '',
@@ -117,6 +123,15 @@ def init_db():
             publisher TEXT DEFAULT '',
             pub_year TEXT DEFAULT '',
             pages TEXT DEFAULT '',
+            price TEXT DEFAULT '',
+            binding TEXT DEFAULT '',
+            edition TEXT DEFAULT '',
+            impression TEXT DEFAULT '',
+            language TEXT DEFAULT '',
+            format TEXT DEFAULT '',
+            cip TEXT DEFAULT '',
+            clc_number TEXT DEFAULT '',
+            keywords TEXT DEFAULT '',
             description TEXT DEFAULT '',
             cover_url TEXT DEFAULT '',
             fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -126,9 +141,16 @@ def init_db():
         INSERT OR IGNORE INTO config (key, value) VALUES ('click_cooldown_hours', '24');
     ''')
     # 迁移：为旧数据库添加新字段
-    for col in ['recommended_major', 'recommended_subject']:
+    for col in ['recommended_major', 'recommended_subject',
+                 'binding', 'edition', 'impression', 'language', 'format', 'cip']:
         try:
             db.execute(f'ALTER TABLE books ADD COLUMN {col} TEXT DEFAULT \'\'')
+        except sqlite3.OperationalError:
+            pass
+    # 迁移：isbn_cache 表
+    for col in ['price', 'binding', 'edition', 'impression', 'language', 'format', 'cip', 'clc_number', 'keywords']:
+        try:
+            db.execute(f'ALTER TABLE isbn_cache ADD COLUMN {col} TEXT DEFAULT \'\'')
         except sqlite3.OperationalError:
             pass
     db.commit()
@@ -168,7 +190,8 @@ def can_click(book_id, reader_id):
 BOOK_FIELDS = [
     'title', 'subtitle', 'volume_name', 'volume_no', 'author',
     'series_name', 'series_author', 'publisher', 'isbn', 'price',
-    'pub_year', 'pages', 'category', 'clc_number', 'keywords',
+    'pub_year', 'pages', 'binding', 'edition', 'impression',
+    'language', 'format', 'cip', 'category', 'clc_number', 'keywords',
     'description', 'notes', 'cover_url'
 ]
 
@@ -681,6 +704,15 @@ def _fetch_alicloud_isbn(isbn_clean):
         'publisher': (d.get('publisher') or '').strip(),
         'pub_year': pub_year,
         'pages': str(d.get('pages', '')).strip(),
+        'price': str(d.get('price', '')).strip(),
+        'binding': (d.get('binding') or '').strip(),
+        'edition': (d.get('edition') or '').strip(),
+        'impression': (d.get('impression') or '').strip(),
+        'language': (d.get('language') or '').strip(),
+        'format': (d.get('format') or '').strip(),
+        'cip': (d.get('cip') or '').strip(),
+        'clc_number': (d.get('class') or '').strip(),
+        'keywords': (d.get('keyword') or '').strip(),
         'description': (d.get('summary') or '').strip()[:2000],
         'cover_url': (d.get('img') or '').strip(),
     }
@@ -719,11 +751,15 @@ def lookup_isbn(isbn):
     # 3) 存缓存
     source_name = cache_data.get('_source', 'api')
     db.execute('''
-        INSERT OR IGNORE INTO isbn_cache (isbn, title, subtitle, author, publisher, pub_year, pages, description, cover_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR IGNORE INTO isbn_cache
+        (isbn, title, subtitle, author, publisher, pub_year, pages, price, binding, edition, impression, language, format, cip, clc_number, keywords, description, cover_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         isbn_clean, cache_data['title'], cache_data.get('subtitle', ''), cache_data.get('author', ''),
         cache_data.get('publisher', ''), cache_data.get('pub_year', ''), cache_data.get('pages', ''),
+        cache_data.get('price', ''), cache_data.get('binding', ''), cache_data.get('edition', ''),
+        cache_data.get('impression', ''), cache_data.get('language', ''), cache_data.get('format', ''),
+        cache_data.get('cip', ''), cache_data.get('clc_number', ''), cache_data.get('keywords', ''),
         cache_data.get('description', ''), cache_data.get('cover_url', '')
     ))
     db.commit()
@@ -795,6 +831,15 @@ def lookup_isbn_batch():
                 'isbn': isbn_clean,
                 'pub_year': result.get('pub_year', ''),
                 'pages': result.get('pages', ''),
+                'price': result.get('price', ''),
+                'binding': result.get('binding', ''),
+                'edition': result.get('edition', ''),
+                'impression': result.get('impression', ''),
+                'language': result.get('language', ''),
+                'format': result.get('format', ''),
+                'cip': result.get('cip', ''),
+                'clc_number': result.get('clc_number', ''),
+                'keywords': result.get('keywords', ''),
                 'description': result.get('description', ''),
                 'cover_url': result.get('cover_url', ''),
             })

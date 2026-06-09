@@ -780,6 +780,17 @@ async function doIsbnLookup() {
               ${data.book.publisher ? esc(data.book.publisher)+' · ' : ''}${data.book.pub_year || ''}
               ${data.book.pages ? ' · '+data.book.pages+'页' : ''}
             </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:3px;display:flex;flex-wrap:wrap;gap:2px 12px;">
+              ${data.book.price ? '<span>💰 ¥'+esc(String(data.book.price))+'</span>' : ''}
+              ${data.book.binding ? '<span>📚 '+esc(data.book.binding)+'</span>' : ''}
+              ${data.book.edition ? '<span>版次: '+esc(data.book.edition)+'</span>' : ''}
+              ${data.book.impression ? '<span>印次: '+esc(data.book.impression)+'</span>' : ''}
+              ${data.book.language ? '<span>语言: '+esc(data.book.language)+'</span>' : ''}
+              ${data.book.format ? '<span>开本: '+esc(data.book.format)+'</span>' : ''}
+              ${data.book.cip ? '<span>CIP: '+esc(data.book.cip)+'</span>' : ''}
+              ${data.book.clc_number ? '<span>中图分类: '+esc(data.book.clc_number)+'</span>' : ''}
+            </div>
+            ${data.book.keywords ? `<div style="font-size:11px;color:#4f46e5;margin-top:2px;">关键词: ${esc(data.book.keywords)}</div>` : ''}
             ${data.book.description ? `<div style="font-size:12px;color:#94a3b8;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${esc(data.book.description)}</div>` : ''}
             <div style="margin-top:4px;font-size:11px;">
               <span style="color:var(--success)">ISBN: ${esc(data.book.isbn)}</span>
