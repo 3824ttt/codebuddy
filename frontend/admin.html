@@ -643,23 +643,24 @@ function showBookTip(rowEl) {
 
   if (rows.length === 0 && !descHtml) return;
 
-  bookTip.innerHTML = rows.join('') + descHtml;
-
+  // 先定位再填内容，确保 offsetHeight 在正确的定位上下文中计算
   const rect = rowEl.getBoundingClientRect();
   let left = rect.right + 14;
   let top = rect.top;
   if (left + 420 > window.innerWidth - 10) left = rect.left - 434;
   if (left < 10) left = 10;
-  const tipH = bookTip.offsetHeight;
-  const spaceBelow = window.innerHeight - rect.bottom;
-  if (tipH > spaceBelow + rect.height / 2) {
-    top = Math.max(10, rect.top - (tipH - rect.height) / 2);
-  }
-  if (top + tipH > window.innerHeight - 10) top = window.innerHeight - tipH - 10;
-  if (top < 10) top = 10;
-
   bookTip.style.left = left + 'px';
   bookTip.style.top = top + 'px';
+
+  bookTip.innerHTML = rows.join('') + descHtml;
+
+  // 强制布局计算后读取高度，防溢出
+  const tipH = bookTip.offsetHeight;
+  if (top + tipH > window.innerHeight - 10) {
+    top = Math.max(10, window.innerHeight - tipH - 10);
+    bookTip.style.top = top + 'px';
+  }
+
   bookTip.classList.add('show');
 }
 
