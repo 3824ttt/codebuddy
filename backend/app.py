@@ -17,7 +17,7 @@ ADMIN_PASSWORD = 'admin123'
 
 # ========== 阿里云 ISBN API 配置 ==========
 # AppCode 获取：https://market.aliyun.com/products/57126001/cmapi00037193.html
-ALICLOUD_APPCODE = '请替换为你的AppCode'
+ALICLOUD_APPCODE = '65725bb8242040df86e0a0e54cca9714'
 
 # ========== Excel 支持 ==========
 try:
