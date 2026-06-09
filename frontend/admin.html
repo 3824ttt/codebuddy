@@ -693,7 +693,7 @@ async function loadBooks() {
   }).join('') || '<tr><td colspan="15" style="text-align:center;color:var(--text-secondary);padding:24px;">暂无图书</td></tr>';
 
   // 更新排序列头样式
-  document.querySelectorAll('#booksTable th[data-sort]').forEach(th => {
+  document.querySelectorAll('#booksTable th[data-sort]:not([data-sort=""])').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
     if (th.dataset.sort === bookSort) {
       th.classList.add(bookSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
